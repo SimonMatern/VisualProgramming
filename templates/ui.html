@@ -4,47 +4,53 @@
 <head>
     <title>Visual Programming</title>
     <script src="{{ url_for('static', filename='cytoscape.min.js') }}"></script>
+    <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
     <style>
         body {
-          font-family: "Lato", sans-serif;
+            font-family: "Lato", sans-serif;
         }
 
 
         .sidenav {
-          height: 100%;
-          width: 160px;
-          position: fixed;
-          z-index: 1;
-          top: 0;
-          left: 0;
-          background-color: #111;
-          overflow-x: hidden;
-          padding-top: 20px;
+            height: 100%;
+            width: 160px;
+            position: fixed;
+            z-index: 1;
+            top: 0;
+            left: 0;
+            background-color: #111;
+            overflow-x: hidden;
+            padding-top: 20px;
         }
 
         .sidenav a {
-          padding: 6px 8px 6px 16px;
-          text-decoration: none;
-          font-size: 25px;
-          color: #818181;
-          display: block;
+            padding: 6px 8px 6px 16px;
+            text-decoration: none;
+            font-size: 25px;
+            color: #818181;
+            display: block;
         }
 
         .sidenav a:hover {
-          color: #f1f1f1;
+            color: #f1f1f1;
         }
 
         .main {
-          margin-left: 160px; /* Same as the width of the sidenav */
-          font-size: 28px; /* Increased text to enable scrolling */
-          padding: 0px 10px;
+            margin-left: 160px; /* Same as the width of the sidenav */
+            font-size: 28px; /* Increased text to enable scrolling */
+            padding: 0px 10px;
         }
 
 
         @media screen and (max-height: 450px) {
-          .sidenav {padding-top: 15px;}
-          .sidenav a {font-size: 18px;}
+            .sidenav {
+                padding-top: 15px;
+            }
+
+            .sidenav a {
+                font-size: 18px;
+            }
         }
     </style>
 
@@ -61,37 +67,80 @@
 </style>
 
 <body>
-    <!--
-    <div class="topnav">
-      <a class="active" href="#home">Home</a>
-      <a href="#news">News</a>
-      <a href="#contact">Contact</a>
-      <a href="#about">About</a>
-    </div> -->
-    <div class="sidenav">
-      <a href="#">About</a>
-      <a href="#">Services</a>
-      <a href="#">Clients</a>
-      <a href="#">Contact</a>
-    </div>
-   <div class="main">
+<!--
+<div class="topnav">
+  <a class="active" href="#home">Home</a>
+  <a href="#news">News</a>
+  <a href="#contact">Contact</a>
+  <a href="#about">About</a>
+</div> -->
+<div class="sidenav">
+    <a href="#">About</a>
+    <a href="#">Services</a>
+    <a href="#">Clients</a>
+    <a href="#">Contact</a>
+</div>
+<div class="main">
     <div id="cy"></div>
-   </div>
-    <script>
-      var cy = cytoscape({
+</div>
+
+<script>
+
+    var count = 1;
+
+    var cy = cytoscape({
         container: document.getElementById('cy'),
         elements: [
-          { data: { id: 'a' } },
-          { data: { id: 'b' } },
-          {
-            data: {
-              id: 'ab',
-              source: 'a',
-              target: 'b'
+            {data: {id: 'a'}},
+            {data: {id: 'b'}},
+            {
+                data: {
+                    id: 'ab',
+                    source: 'a',
+                    target: 'b'
+                }
+            }],
+        boxSelectionEnabled: true
+    });
+
+    /*
+    cy.on('tap', 'node', function (evt) {
+        var node = evt.target;
+        //console.log( 'tapped ' + node.id() );
+        $.get("/get_node_ui", function (data) {
+            console.log(data)
+        });
+        cy.add([{group: 'nodes', data: {id: count}}]);
+        count++;
+    }); */
+    cy.on('click', function(evt){
+
+        //Get mouse-click position
+        var x = evt.position.x;
+        var y = evt.position.y;
+        //get Selected nodes and edges
+        var selected = cy.$(':selected').jsons();
+
+        // POST to Flask-Server
+        $.post("/get_node_ui", {
+            data: JSON.stringify(selected)
+        },function(err, req, resp){});
+
+        var newNodeId = count;
+        cy.add([{group: 'nodes', data: {id: newNodeId}, position: { x: x, y: y }}]);
+        count++;
+
+
+        selected.forEach(function (element,idx) {
+            if(element.group == "nodes"){
+                cy.add({ group: 'edges', data: { id: count, source: element.data.id, target: newNodeId }} )
+                count++;
+
             }
-          }]
-      });
-    </script>
+            console.log(element);
+        });
+    })
+</script>
 
 </body>
 </html>
