@@ -5,16 +5,17 @@
     <title>Visual Programming</title>
     <script src="{{ url_for('static', filename='cytoscape.min.js') }}"></script>
     <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
     <style>
         body {
             font-family: "Lato", sans-serif;
         }
 
-
+        /* Fixed sidenav, full height */
         .sidenav {
             height: 100%;
-            width: 160px;
+            width: 200px;
             position: fixed;
             z-index: 1;
             top: 0;
@@ -24,25 +25,53 @@
             padding-top: 20px;
         }
 
-        .sidenav a {
+        /* Style the sidenav links and the dropdown button */
+        .sidenav a, .dropdown-btn {
             padding: 6px 8px 6px 16px;
             text-decoration: none;
-            font-size: 25px;
+            font-size: 20px;
             color: #818181;
             display: block;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            outline: none;
         }
 
-        .sidenav a:hover {
+        /* On mouse-over */
+        .sidenav a:hover, .dropdown-btn:hover {
             color: #f1f1f1;
         }
 
+        /* Main content */
         .main {
-            margin-left: 160px; /* Same as the width of the sidenav */
-            font-size: 28px; /* Increased text to enable scrolling */
+            margin-left: 200px; /* Same as the width of the sidenav */
+            font-size: 20px; /* Increased text to enable scrolling */
             padding: 0px 10px;
         }
 
+        /* Add an active class to the active dropdown button */
+        .active {
+            background-color: green;
+            color: white;
+        }
 
+        /* Dropdown container (hidden by default). Optional: add a lighter background color and some left padding to change the design of the dropdown content */
+        .dropdown-container {
+            display: none;
+            background-color: #262626;
+            padding-left: 8px;
+        }
+
+        /* Optional: Style the caret down icon */
+        .fa-caret-down {
+            float: right;
+            padding-right: 8px;
+        }
+
+        /* Some media queries for responsiveness */
         @media screen and (max-height: 450px) {
             .sidenav {
                 padding-top: 15px;
@@ -62,7 +91,7 @@
         height: 80%;
         position: absolute;
         top: 100px;
-        left: 160px;
+        left: 200px;
     }
 </style>
 
@@ -74,12 +103,23 @@
   <a href="#contact">Contact</a>
   <a href="#about">About</a>
 </div> -->
+
 <div class="sidenav">
-    <a href="#">About</a>
-    <a href="#">Services</a>
-    <a href="#">Clients</a>
-    <a href="#">Contact</a>
+    <a href="#about">About</a>
+    <a href="#services">Services</a>
+    <a href="#clients">Clients</a>
+    <a href="#contact">Contact</a>
+    <button class="dropdown-btn">Dropdown
+        <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-container">
+        <a href="#">Link 1</a>
+        <a href="#">Link 2</a>
+        <a href="#">Link 3</a>
+    </div>
+    <a href="#contact">Search</a>
 </div>
+
 <div class="main">
     <div id="cy"></div>
 </div>
@@ -113,7 +153,7 @@
         cy.add([{group: 'nodes', data: {id: count}}]);
         count++;
     }); */
-    cy.on('click', function(evt){
+    cy.on('click', function (evt) {
 
         //Get mouse-click position
         var x = evt.position.x;
@@ -124,22 +164,42 @@
         // POST to Flask-Server
         $.post("/get_node_ui", {
             data: JSON.stringify(selected)
-        },function(err, req, resp){});
+        }, function (err, req, resp) {
+        });
 
         var newNodeId = count;
-        cy.add([{group: 'nodes', data: {id: newNodeId}, position: { x: x, y: y }}]);
+        cy.add([{group: 'nodes', data: {id: newNodeId}, position: {x: x, y: y}}]);
         count++;
 
 
-        selected.forEach(function (element,idx) {
-            if(element.group == "nodes"){
-                cy.add({ group: 'edges', data: { id: count, source: element.data.id, target: newNodeId }} )
+        selected.forEach(function (element, idx) {
+            if (element.group == "nodes") {
+                cy.add({group: 'edges', data: {id: count, source: element.data.id, target: newNodeId}})
                 count++;
 
             }
             console.log(element);
         });
     })
+</script>
+
+
+<script>
+    /* Loop through all dropdown buttons to toggle between hiding and showing its dropdown content - This allows the user to have multiple dropdowns without any conflict */
+    var dropdown = document.getElementsByClassName("dropdown-btn");
+    var i;
+
+    for (i = 0; i < dropdown.length; i++) {
+        dropdown[i].addEventListener("click", function () {
+            this.classList.toggle("active");
+            var dropdownContent = this.nextElementSibling;
+            if (dropdownContent.style.display === "block") {
+                dropdownContent.style.display = "none";
+            } else {
+                dropdownContent.style.display = "block";
+            }
+        });
+    }
 </script>
 
 </body>
