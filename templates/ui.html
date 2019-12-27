@@ -76,7 +76,7 @@
 
     var cy = cytoscape({
         container: document.getElementById('cy'),
-
+        
         style: cytoscape.stylesheet()
             .selector('node')
             .css({
@@ -141,7 +141,7 @@
         $.post("add_source", {id:id}, function (val, status) {
             console.log(val);
             console.log(status);
-            cy.add([{group: 'nodes', data: {id: id, label: "Datenquelle: "+id}}]);
+            cy.add([{group: 'nodes', data: val}]);
         });
     }
 </script>
