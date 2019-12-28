@@ -30,13 +30,20 @@ def hello_world():
     global data_sources
     return render_template("ui.html", data=data_sources, nodes=graph.get_nodes())
 
-@app.route('/add_source', methods=['POST'])
+@app.route('/addDataSource', methods=['POST'])
 def addDataSource():
     id = request.form['id']
     node = Source(id)
     graph.add_node(node)
     return jsonify(node.get_Cyto_format())
 
+@app.route('/sqlSelect', methods=['POST'])
+def sqlSelect():
+    id = request.form['id']
+    print(id)
+    print(graph.nodes)
+    node = graph[id]
+    return jsonify(node.df.schema.names)
 
 @app.route('/get_node_ui', methods=['GET', 'POST'])
 def get_node_ui():

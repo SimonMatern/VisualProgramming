@@ -3,7 +3,8 @@
 
 <head>
     <title>Visual Programming</title>
-    <script src="{{ url_for('static', filename='cytoscape.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/cytoscape.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
     <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
@@ -23,6 +24,7 @@
         text-color: '#ffffff';
 
     }
+
 </style>
 
 <body>
@@ -47,20 +49,27 @@
         </div>
     </div>
 </div>
+
 <div class="sidenav">
     <button class="dropdown-btn">Datenquellen
         <i class="fa fa-caret-down"></i>
     </button>
     <div class="dropdown-container">
         {% for d in data %}
-            <a href="#"  onclick="addDataSource('{{ d }}')">{{ d }}</a>
+            <a href="#" onclick="addDataSource('{{ d }}')">{{ d }}</a>
         {% endfor %}
 
     </div>
+    <button class="dropdown-btn">SQL
+        <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-container">
+        <a href="#" onclick="sqlSelect()">Select </a>
+        <a href="#">Where</a>
+        <a href="#">Join</a>
+    </div>
     <a href="#sql">SQL</a>
     <a href="#contact">Search</a>
-
-
 </div>
 
 <div class="main">
@@ -69,14 +78,14 @@
 
 <script>
 
-    var q = {{ data| tojson }};
-    console.log(q);
+    var nodes = {{ nodes| tojson }};
+    console.log(nodes);
 
     var count = 1;
 
     var cy = cytoscape({
         container: document.getElementById('cy'),
-        
+
         style: cytoscape.stylesheet()
             .selector('node')
             .css({
@@ -86,25 +95,35 @@
                 'border-color': '#000',
                 'border-width': 3,
                 'border-opacity': 0.5,
-                'background-color': '#ff0000',
+                'background-color': '#ffffff',
                 'text-color': '#ffffff',
                 'text-wrap': 'wrap',
                 'text-halign': 'center',
                 'text-valign': 'center'
+            })
+            .selector('edge')
+            .css({
+                'curve-style': 'bezier',
+                'target-arrow-shape': 'triangle',
+                'line-color': '#ffaaaa',
+                'target-arrow-color': '#ffaaaa'
             }),
         boxSelectionEnabled: true
     });
 
+
+    nodes.forEach(function (node, index) {
+        cy.add([{group: 'nodes', data: node}]);
+    });
+
+    var layout = cy.layout({
+        name: 'breadthfirst',
+        directed: true
+    });
+    layout.run();
+
+
     /*
-    cy.on('tap', 'node', function (evt) {
-        var node = evt.target;
-        //console.log( 'tapped ' + node.id() );
-        $.get("/get_node_ui", function (data) {
-            console.log(data)
-        });
-        cy.add([{group: 'nodes', data: {id: count}}]);
-        count++;
-    }); */
     cy.on('click', function (evt) {
 
 
@@ -134,16 +153,47 @@
             console.log(element);
 
         });
-    })
+    }) */
 
+    /**
+     * ########################################################################################################
+     *              The following code contains functions used for defining data sources and sinks
+     *              and data tranformations
+     * ########################################################################################################
+     */
 
-    function addDataSource(id){
-        $.post("add_source", {id:id}, function (val, status) {
-            console.log(val);
-            console.log(status);
+    /**
+     * This function is triggered by a click on a data source.
+     * Given the id of the data source it generates a source for all following
+     * operations.
+     * @param id The name of Hive table
+     */
+    function addDataSource(id) {
+        $.post("addDataSource", {id: id}, function (val, status) {
             cy.add([{group: 'nodes', data: val}]);
         });
     }
+
+    // ############################################# SQL-Functions ############################################
+
+    /**
+     *
+     */
+    function sqlSelect() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+
+        let id = selected[0].data.id;
+        $.post("sqlSelect", {id: id}, function (response, status) {
+            console.log(response);
+        });
+        console.log(selected);
+
+
+        new BstrapModal("Custom Titel", "Custom Body").Show();
+    }
+
+
 </script>
 
 
@@ -164,8 +214,6 @@
         });
     }
 </script>
-
-
 
 
 </body>

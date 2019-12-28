@@ -3,14 +3,17 @@ from pyspark import SparkConf
 from os.path import expanduser, join, abspath
 import os
 
+
 def get_spark_Session():
-    os.environ["SPARK_HOME"]="/home/nodeuser/nfs_share/spark-2.4.4-bin-hadoop2.7"
+    os.environ["SPARK_HOME"] = "/home/nodeuser/nfs_share/spark-2.4.4-bin-hadoop2.7"
     warehouse_location = abspath('/user/hive/warehouse')
-    #sc = SparkContext(master = "yarn-client")
+    # sc = SparkContext(master = "yarn-client")
 
-
-    sconf = SparkConf().setAll([('master','yarn'),('deploy-mode','client'),('spark.executor.memory', '4g'), ('spark.app.name', 'Spark Updated Conf'), ('spark.executor.cores', '4'), ('spark.cores.max', '4'),
-                                ('spark.driver.memory','4g'),('spark.executor.instances', 10), ('spark.sql.warehouse.dir', warehouse_location)])
+    sconf = SparkConf().setAll([('master', 'yarn'), ('deploy-mode', 'client'), ('spark.executor.memory', '4g'),
+                                ('spark.app.name', 'Spark Updated Conf'), ('spark.executor.cores', '4'),
+                                ('spark.cores.max', '4'),
+                                ('spark.driver.memory', '4g'), ('spark.executor.instances', 10),
+                                ('spark.sql.warehouse.dir', warehouse_location)])
     spark = SparkSession \
         .builder \
         .config(conf=sconf) \
@@ -18,22 +21,26 @@ def get_spark_Session():
         .getOrCreate()
     return spark
 
+
 spark = get_spark_Session()
+
 
 class Node:
     def __init__(self, id, label, inputs=None):
-
         self.id = id
         self.label = label
         self.inputs = inputs
+        self.df = None
 
     def get_Cyto_format(self):
-        return {"id":self.id , "label":self.label}
+        return {"id": self.id, "label": self.label}
+
 
 class Source(Node):
     def __init__(self, id):
+        super().__init__(id=id, label="Datenquelle: " + str(id))
         self.df = spark.sql("select * from " + str(id))
-        super().__init__(id=id,label="Datenquelle: " + str(id))
+
 
 
 class Graph:
@@ -41,7 +48,10 @@ class Graph:
         self.nodes = {}
         self.edges = []
 
-    def add_node(self, node : Node):
+    def __getitem__(self, id):
+        return self.nodes[id]
+
+    def add_node(self, node: Node):
         self.nodes[node.id] = node
 
     def get_nodes(self):
