@@ -12,6 +12,10 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.default.css">
+
 </head>
 
 <style>
@@ -48,6 +52,25 @@
             {% endfor %}
         </div>
     </div>
+    <div>
+        <select id="select-tools" placeholder="Pick a tool..."></select>
+    </div>
+
+    <script>
+        // <select id="select-tools"></select>
+        $('#select-tools').selectize({
+            maxItems: null,
+            valueField: 'id',
+            labelField: 'title',
+            searchField: 'title',
+            options: [
+                {id: 1, title: 'Spectrometer', url: 'http://en.wikipedia.org/wiki/Spectrometers'},
+                {id: 2, title: 'Star Chart', url: 'http://en.wikipedia.org/wiki/Star_chart'},
+                {id: 3, title: 'Electrical Tape', url: 'http://en.wikipedia.org/wiki/Electrical_tape'}
+            ],
+            create: false
+        });
+    </script>
 </div>
 
 <div class="sidenav">
@@ -177,7 +200,7 @@
     // ############################################# SQL-Functions ############################################
 
     /**
-     *
+     *  This simulates projection. SQL-function: SELECT ... FROM table
      */
     function sqlSelect() {
         let selected = cy.$(':selected').jsons();
@@ -189,8 +212,7 @@
         });
         console.log(selected);
 
-
-        new BstrapModal("Custom Titel", "Custom Body").Show();
+        new BstrapModal("Custom Titel", "BLABLA").Show();
     }
 
 
@@ -214,7 +236,6 @@
         });
     }
 </script>
-
 
 </body>
 </html>
