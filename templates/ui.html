@@ -20,15 +20,34 @@
 
 <style>
     #cy {
-        width: 90%;
-        height: 80%;
+        height: 66%;
         position: absolute;
-        top: 100px;
-        left: 200px;
+        top: 10px;
+        left: 205px;
+        right: 5px;
         text-color: '#ffffff';
+        background: #ccffcc;
+        border: 3px solid #ffffff;
 
     }
 
+    div.form {
+        position: absolute;
+        left: 205px;
+        right: 5px;
+        top: 66%;
+        height: 33%;
+        border: 3px solid #73AD21;
+    }
+
+    div.absolute {
+        position: absolute;
+        top: 80px;
+        right: 0;
+        width: 200px;
+        height: 100px;
+        border: 3px solid #73AD21;
+    }
 </style>
 
 <body>
@@ -40,38 +59,6 @@
   <a href="#about">About</a>
 </div> -->
 
-
-<div class="container" style="margin-left:200px;">
-    <div class="dropdown">
-        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown">
-            Datenquelle hinzufügen
-        </button>
-        <div class="dropdown-menu">
-            {% for d in data %}
-                <a class="dropdown-item" onclick="addDataSource('{{ d }}')"> {{ d }}</a>
-            {% endfor %}
-        </div>
-    </div>
-    <div>
-        <select id="select-tools" placeholder="Pick a tool..."></select>
-    </div>
-
-    <script>
-        // <select id="select-tools"></select>
-        $('#select-tools').selectize({
-            maxItems: null,
-            valueField: 'id',
-            labelField: 'title',
-            searchField: 'title',
-            options: [
-                {id: 1, title: 'Spectrometer', url: 'http://en.wikipedia.org/wiki/Spectrometers'},
-                {id: 2, title: 'Star Chart', url: 'http://en.wikipedia.org/wiki/Star_chart'},
-                {id: 3, title: 'Electrical Tape', url: 'http://en.wikipedia.org/wiki/Electrical_tape'}
-            ],
-            create: false
-        });
-    </script>
-</div>
 
 <div class="sidenav">
     <button class="dropdown-btn">Datenquellen
@@ -91,13 +78,16 @@
         <a href="#">Where</a>
         <a href="#">Join</a>
     </div>
-    <a href="#sql">SQL</a>
+    <a href="#sql">Data-Analysis</a>
     <a href="#contact">Search</a>
 </div>
 
+
 <div class="main">
     <div id="cy"></div>
+    <div id="form" class="form"> Select</div>
 </div>
+
 
 <script>
 
@@ -207,12 +197,75 @@
         if (selected.length != 1) return;
 
         let id = selected[0].data.id;
-        $.post("sqlSelect", {id: id}, function (response, status) {
-            console.log(response);
-        });
-        console.log(selected);
 
-        new BstrapModal("Custom Titel", "BLABLA").Show();
+        const form = document.getElementById("form");
+        while (form.firstChild) {
+            form.removeChild(form.firstChild);
+        }
+
+        $.post("sqlSelect", {id: id}, function (response, status) {
+            console.log("response:" + response);
+            columns = response;
+            //TODO: Exception handling
+
+            // Selection box with description text for selecting columns
+            var select = document.createElement("div");
+            select.id = "selectize";
+            var text = document.createTextNode("Wähle die Spalten für dir Projektion aus:")
+            document.getElementById("form").appendChild(text);
+            document.getElementById("form").appendChild(select);
+
+            // Selection box with description text for renaming columns
+            var rename = document.createElement("div");
+            rename.id = "rename";
+            text = document.createTextNode("(Optional) Umbennenung der Spalten. Die Anzahl der Elemente muss mit der oberen Auswahl übereinstimmen.)")
+            document.getElementById("form").appendChild(text);
+            document.getElementById("form").appendChild(rename);
+            //new BstrapModal("Custom Titel", "BLABLA").Show();
+
+            var options = [];
+            columns.forEach(function (val, idx) {
+                options.push({id: idx, label: val});
+            });
+
+            var selectizeInput = $('#selectize').selectize({
+                maxItems: null,
+                valueField: 'id',
+                labelField: 'label',
+                searchField: 'label',
+                options: options,
+                create: false
+            });
+            var renameInput = $('#rename').selectize({
+                maxItems: null,
+                valueField: 'id',
+                labelField: 'label',
+                searchField: 'label',
+                options: options,
+                create: true
+            });
+
+            function sqlSelectResponse(){
+                //$.post("sqlSelectResponse", {id: id}, function (response, status) {});
+                var ids = selectizeInput[0].selectize.getValue();
+                console.log(ids);
+                var labels = columns.filter(function(currentValue, index){
+                    return ids.includes(index);
+                });
+                console.log(labels);
+                //TODO:  Send Response and change visualization of graph
+            }
+
+            var button = document.createElement("input");
+            button.type = "button";
+            button.name = "add";
+            button.value="Submit";
+            button.className="btn btn btn-primary";
+            button.onclick =sqlSelectResponse;
+            document.getElementById('form').appendChild(button);
+
+        });
+
     }
 
 
