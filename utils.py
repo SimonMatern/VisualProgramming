@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark import SparkConf
 from os.path import expanduser, join, abspath
 import os
-
+import uuid
 
 def get_spark_Session():
     os.environ["SPARK_HOME"] = "/home/nodeuser/nfs_share/spark-2.4.4-bin-hadoop2.7"
@@ -26,27 +26,33 @@ spark = get_spark_Session()
 
 
 class Node:
-    def __init__(self, id, label, inputs=None):
-        self.id = id
+    def __init__(self, label, df=None, inputs=None):
+        self.id = uuid.uuid1().hex
         self.label = label
         self.inputs = inputs
-        self.df = None
+        self.df = df
 
-    def get_Cyto_format(self):
+    def get_Cyto_node(self):
         return {"id": self.id, "label": self.label}
+
+    def get_Cyto_edges(self):
+        if not self.inputs:
+            return []
+        return [ {"id":node.id+"-"+self.id, "source": node.id, "target": self.id}  for node in self.inputs]
+
 
 
 class Source(Node):
-    def __init__(self, id):
-        super().__init__(id=id, label="Datenquelle: " + str(id))
-        self.df = spark.sql("select * from " + str(id))
+    def __init__(self, label):
+        super().__init__(label="Datenquelle: " + str(label))
+        self.df = spark.sql("select * from " + str(label))
 
 
 
 class Graph:
     def __init__(self):
         self.nodes = {}
-        self.edges = []
+        self.edges = {}
 
     def __getitem__(self, id):
         return self.nodes[id]
@@ -57,5 +63,10 @@ class Graph:
     def get_nodes(self):
         nodes = []
         for node in self.nodes.values():
-            nodes.append(node.get_Cyto_format())
+            nodes.append(node.get_Cyto_node())
         return nodes
+
+    def get_edges(self):
+        edges = []
+        for node in self.nodes.values():
+            edges+= node.get_Cyto_edges()

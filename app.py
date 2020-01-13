@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask import  render_template
-
+import json
 # -------- Spark imports  --------
 import pyspark
 import os
@@ -35,7 +35,7 @@ def addDataSource():
     id = request.form['id']
     node = Source(id)
     graph.add_node(node)
-    return jsonify(node.get_Cyto_format())
+    return jsonify(node.get_Cyto_node())
 
 @app.route('/sqlSelect', methods=['POST'])
 def sqlSelect():
@@ -44,6 +44,25 @@ def sqlSelect():
     print(graph.nodes)
     node = graph[id]
     return jsonify(node.df.schema.names)
+
+@app.route('/sqlSelectResponse', methods=['POST'])
+def sqlSelectResponse():
+    columns = eval(request.form['columns'])
+    rename = eval(request.form['rename'])
+    id = request.form['id']
+    print(columns)
+    print(rename)
+    print(id)
+
+    source = graph[id]
+    df = None
+    if len(columns)==len(rename):
+        df = source.df.select(columns).toDF(*rename)
+    else:
+        df = source.df.select(columns)
+    node = Node(label="Select",df=df,inputs=[source])
+    graph.add_node(node)
+    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
 
 @app.route('/get_node_ui', methods=['GET', 'POST'])
 def get_node_ui():

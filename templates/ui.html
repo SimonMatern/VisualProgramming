@@ -245,23 +245,40 @@
                 create: true
             });
 
-            function sqlSelectResponse(){
+            function sqlSelectResponse() {
                 //$.post("sqlSelectResponse", {id: id}, function (response, status) {});
                 var ids = selectizeInput[0].selectize.getValue();
-                console.log(ids);
-                var labels = columns.filter(function(currentValue, index){
+                var labels = columns.filter(function (currentValue, index) {
                     return ids.includes(index);
                 });
-                console.log(labels);
+                ids = renameInput[0].selectize.getValue();
+                var rename = columns.filter(function (currentValue, index) {
+                    return ids.includes(index);
+                });
+
                 //TODO:  Send Response and change visualization of graph
+                $.post("sqlSelectResponse", {
+                    columns: JSON.stringify(labels),
+                    rename: JSON.stringify(rename),
+                    id: id
+                }, function (response, status) {
+                    console.log(response);
+                    node = JSON.parse(response.node);
+                    edge = JSON.parse(response.edges)[0];
+                    console.log(node);
+                    console.log(edge);
+                    cy.add([{group: 'nodes', data: node}]);
+                    cy.add([{group: 'edges', data: edge}]);
+
+                });
             }
 
             var button = document.createElement("input");
             button.type = "button";
             button.name = "add";
-            button.value="Submit";
-            button.className="btn btn btn-primary";
-            button.onclick =sqlSelectResponse;
+            button.value = "Submit";
+            button.className = "btn btn btn-primary";
+            button.onclick = sqlSelectResponse;
             document.getElementById('form').appendChild(button);
 
         });
