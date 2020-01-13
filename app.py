@@ -28,7 +28,7 @@ graph = Graph()
 @app.route('/')
 def hello_world():
     global data_sources
-    return render_template("ui.html", data=data_sources, nodes=graph.get_nodes())
+    return render_template("ui.html", data=data_sources, nodes=graph.get_nodes(), edges=graph.get_edges())
 
 @app.route('/addDataSource', methods=['POST'])
 def addDataSource():
@@ -50,10 +50,6 @@ def sqlSelectResponse():
     columns = eval(request.form['columns'])
     rename = eval(request.form['rename'])
     id = request.form['id']
-    print(columns)
-    print(rename)
-    print(id)
-
     source = graph[id]
     df = None
     if len(columns)==len(rename):
@@ -68,7 +64,6 @@ def sqlSelectResponse():
 def get_node_ui():
     if request.method == 'POST':
         jsdata = request.form['data']
-        print(jsdata)
     return "RPC-Flask"
 
 

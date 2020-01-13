@@ -70,3 +70,4 @@ class Graph:
         edges = []
         for node in self.nodes.values():
             edges+= node.get_Cyto_edges()
+        return edges

@@ -92,7 +92,10 @@
 <script>
 
     var nodes = {{ nodes| tojson }};
+    var edges = {{ edges| tojson }};
+
     console.log(nodes);
+    console.log(edges);
 
     var count = 1;
 
@@ -127,6 +130,9 @@
 
     nodes.forEach(function (node, index) {
         cy.add([{group: 'nodes', data: node}]);
+    });
+    edges.forEach(function (edge, index) {
+        cy.add([{group: 'edges', data: edge}]);
     });
 
     var layout = cy.layout({
@@ -265,8 +271,6 @@
                     console.log(response);
                     node = JSON.parse(response.node);
                     edge = JSON.parse(response.edges)[0];
-                    console.log(node);
-                    console.log(edge);
                     cy.add([{group: 'nodes', data: node}]);
                     cy.add([{group: 'edges', data: edge}]);
 
