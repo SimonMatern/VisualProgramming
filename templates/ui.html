@@ -242,13 +242,18 @@
                 options: options,
                 create: false
             });
+
+             var n = columns.length;
             var renameInput = $('#rename').selectize({
                 maxItems: null,
                 valueField: 'id',
                 labelField: 'label',
                 searchField: 'label',
                 options: options,
-                create: true
+                create: function (val) {
+                    columns.push(val);
+                    return {id: n++, label: val};
+                }
             });
 
             function sqlSelectResponse() {
