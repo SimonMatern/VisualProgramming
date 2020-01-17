@@ -39,17 +39,18 @@ def addDataSource():
 
 
 @app.route('/sqlFilter', methods=['POST'])
-def sqlSelect():
+def sqlFilter():
     id = request.form['id']
     print(id)
     node = graph[id]
     columns = node.df.schema.names
     data_types = [field.dataType.simpleString() for field in node.df.schema.fields]
     print(data_types)
-    return {"columns": json.dumps(columns), "data_types":json.dumps(data_types)}
+    dictionary = dict(zip(columns, data_types))
+    return dictionary
 
 @app.route('/sqlSelect', methods=['POST'])
-def sqlFilter():
+def sqlSelect():
     id = request.form['id']
     print(id)
     node = graph[id]

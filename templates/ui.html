@@ -7,7 +7,7 @@
     <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
     <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" type="text/css">
     <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
@@ -309,16 +309,65 @@
         }
 
         $.post("sqlFilter", {id: id}, function (response, status) {
-            console.log("response:" + response);
-            columns = response;
+
+            var columns = Object.keys(response);
             //TODO: Exception handling
 
-            // Selection box with description text for selecting columns
-            var select = document.createElement("div");
-            select.id = "selectize";
-            var text = document.createTextNode("Wähle die Spalten für dir Projektion aus:")
+            // Selection box with description text for selecting
+            var div = document.createElement("div");
+            div.id = "columns";
+            div.style.cssText = "   display: flex; flex-direction: row;";
+
+            // create a selectize for selecting columns
+            var filters = document.createElement("div");
+            filters.id = "filters";
+            filters.style.width = "80%";
+            var text = document.createTextNode("Wähle Sie die Spalten aus, nach denen gefiltert werden soll:")
             document.getElementById("form").appendChild(text);
-            document.getElementById("form").appendChild(select);
+            div.appendChild(filters);
+            document.getElementById("form").appendChild(div);
+            var options = [];
+            columns.forEach(function (val, idx) {
+                options.push({id: idx, label: val});
+            });
+            var filtersInput = $('#filters').selectize({
+                maxItems: null,
+                valueField: 'id',
+                labelField: 'label',
+                searchField: 'label',
+                options: options,
+                create: false,
+                maxItems: 1
+            });
+
+
+            /**
+             *  Dynamically adds filter. The type of the filter
+             *  depends on the corresponding data type.
+             */
+            function addFilter() {
+
+                // Get selected column to be filtered
+                var selectize = filtersInput[0].selectize;
+                var columns = $.map(selectize.items, function (value) {
+                    return selectize.options[value];
+                });
+                var column = columns.map(x => x.label)[0];
+                console.log(column);
+
+                
+
+            }
+
+            var button = document.createElement("input");
+            button.type = "button";
+            button.name = "add";
+            button.value = "Add";
+            button.className = "btn btn btn-primary";
+            button.style.width = "60px";
+            button.onclick= addFilter;
+            document.getElementById('columns').appendChild(button);
+
         })
     }
 
