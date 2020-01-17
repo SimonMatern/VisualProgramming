@@ -37,11 +37,21 @@ def addDataSource():
     graph.add_node(node)
     return jsonify(node.get_Cyto_node())
 
-@app.route('/sqlSelect', methods=['POST'])
+
+@app.route('/sqlFilter', methods=['POST'])
 def sqlSelect():
     id = request.form['id']
     print(id)
-    print(graph.nodes)
+    node = graph[id]
+    columns = node.df.schema.names
+    data_types = [field.dataType.simpleString() for field in node.df.schema.fields]
+    print(data_types)
+    return {"columns": json.dumps(columns), "data_types":json.dumps(data_types)}
+
+@app.route('/sqlSelect', methods=['POST'])
+def sqlFilter():
+    id = request.form['id']
+    print(id)
     node = graph[id]
     return jsonify(node.df.schema.names)
 
@@ -49,6 +59,8 @@ def sqlSelect():
 def sqlSelectResponse():
     columns = eval(request.form['columns'])
     rename = eval(request.form['rename'])
+    print(columns)
+    print(rename)
     id = request.form['id']
     source = graph[id]
     df = None

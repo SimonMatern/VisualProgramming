@@ -75,7 +75,7 @@
     </button>
     <div class="dropdown-container">
         <a href="#" onclick="sqlSelect()">Select </a>
-        <a href="#">Where</a>
+        <a href="#" onclick="sqlFilter()">Filter</a>
         <a href="#">Join</a>
     </div>
     <a href="#sql">Data-Analysis</a>
@@ -242,13 +242,18 @@
                 options: options,
                 create: false
             });
+
+            var n = columns.length;
             var renameInput = $('#rename').selectize({
                 maxItems: null,
                 valueField: 'id',
                 labelField: 'label',
                 searchField: 'label',
                 options: options,
-                create: true
+                create: function (val) {
+                    columns.push(val);
+                    return {id: n++, label: val};
+                }
             });
 
             function sqlSelectResponse() {
@@ -258,9 +263,12 @@
                     return ids.includes(index);
                 });
                 ids = renameInput[0].selectize.getValue();
-                var rename = columns.filter(function (currentValue, index) {
-                    return ids.includes(index);
+
+                var selectize = renameInput[0].selectize;
+                var selected_objects = $.map(selectize.items, function (value) {
+                    return selectize.options[value];
                 });
+                var rename = rename_objects.map(x => x.label);
 
                 //TODO:  Send Response and change visualization of graph
                 $.post("sqlSelectResponse", {
@@ -287,6 +295,31 @@
 
         });
 
+    }
+
+    function sqlFilter() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+
+        let id = selected[0].data.id;
+
+        const form = document.getElementById("form");
+        while (form.firstChild) {
+            form.removeChild(form.firstChild);
+        }
+
+        $.post("sqlFilter", {id: id}, function (response, status) {
+            console.log("response:" + response);
+            columns = response;
+            //TODO: Exception handling
+
+            // Selection box with description text for selecting columns
+            var select = document.createElement("div");
+            select.id = "selectize";
+            var text = document.createTextNode("Wähle die Spalten für dir Projektion aus:")
+            document.getElementById("form").appendChild(text);
+            document.getElementById("form").appendChild(select);
+        })
     }
 
 
