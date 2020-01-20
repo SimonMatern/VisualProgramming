@@ -173,6 +173,23 @@
 
         });
     }) */
+    /**
+     * ############################################### Utility functions#############################################*/
+    function getSelectize(id) {
+
+        let selectize = $(id)[0].selectize;
+
+        let options = selectize.options;
+        let items = selectize.items;
+        let columns = $.map(items, function (value) {
+            return options[value];
+        });
+        let selection = columns.map(x => x.label);
+        return selection;
+    }
+
+    /** END ############################################### Utility functions########################################*/
+
 
     /**
      * ########################################################################################################
@@ -311,21 +328,26 @@
         $.post("sqlFilter", {id: id}, function (response, status) {
 
             var columns = Object.keys(response);
+            var types = Object.values(response);
+
             //TODO: Exception handling
 
             // Selection box with description text for selecting
             var div = document.createElement("div");
-            div.id = "columns";
-            div.style.cssText = "   display: flex; flex-direction: row;";
+            div.id = "filterUI";
 
             // create a selectize for selecting columns
+
             var filters = document.createElement("div");
             filters.id = "filters";
-            filters.style.width = "80%";
-            var text = document.createTextNode("Wähle Sie die Spalten aus, nach denen gefiltert werden soll:")
+            filters.style.cssText = "display: flex; flex-direction: row;";
+
+            var text = document.createTextNode("Wähle Sie die Spalten aus, nach denen gefiltert werden soll:");
             document.getElementById("form").appendChild(text);
             div.appendChild(filters);
             document.getElementById("form").appendChild(div);
+
+
             var options = [];
             columns.forEach(function (val, idx) {
                 options.push({id: idx, label: val});
@@ -348,25 +370,63 @@
             function addFilter() {
 
                 // Get selected column to be filtered
-                var selectize = filtersInput[0].selectize;
-                var columns = $.map(selectize.items, function (value) {
-                    return selectize.options[value];
-                });
-                var column = columns.map(x => x.label)[0];
-                console.log(column);
+                let column = getSelectize('#filters')[0];
+                console.log(response);
 
-                
+                let div = document.createElement("div");
+                div.id = "condition" + (++filterCount);
+                div.style.cssText = "display: flex; flex-direction: row;";
+
+                let columnName = document.createElement("Label");
+                columnName.innerHTML = column;
+                div.style.cssText = "  padding: 2px;";
+                div.appendChild(columnName);
+
+                // UI for Input text used as a condition
+                let inputGroup = document.createElement("div");
+                inputGroup.className = "input-group mb-3";
+                let input = document.createElement("INPUT");
+                input.type = "text";
+                input.className = "form-control";
+                input.placeholder = "Please Insert a Condition";
+                input.id = "condition-input" + (filterCount);
+
+                let input1 = document.createElement("INPUT");
+                input1.className = "form-control";
+                input1.id = "condition-input" + (filterCount);
+                div.appendChild(input);
+
+                div.innerHTML = `<div class="input-group mb-3">
+                                   <input type="text" class="form-control" placeholder="Insert Filter Condition" aria-label="Recipient's username" aria-describedby="basic-addon2">
+                                     <div class="input-group-append">
+                                       <button class="btn btn-outline-secondary" type="button">Remove</button>
+                                     </div>
+                                 </div>`;
+                document.getElementById("filterUI").appendChild(div);
+
 
             }
 
-            var button = document.createElement("input");
+            var filterCount = 0;
+            let button = document.createElement("input");
             button.type = "button";
             button.name = "add";
             button.value = "Add";
             button.className = "btn btn btn-primary";
             button.style.width = "60px";
-            button.onclick= addFilter;
-            document.getElementById('columns').appendChild(button);
+            button.addEventListener("click", addFilter);
+
+            document.getElementById('filterUI').appendChild(button);
+
+            let submit = document.createElement("input");
+            submit.type = "button";
+            submit.name = "add";
+            submit.value = "Submit";
+            submit.className = "btn btn btn-success";
+            submit.style.width = "80px";
+            submit.addEventListener("click", addFilter);
+            document.getElementById('form').appendChild(submit);
+
 
         })
     }
