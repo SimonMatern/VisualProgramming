@@ -35,8 +35,7 @@
         position: absolute;
         left: 205px;
         right: 5px;
-        top: 66%;
-        height: 33%;
+        top: 68%;
         border: 3px solid #73AD21;
     }
 
@@ -188,7 +187,11 @@
         return selection;
     }
 
-    /** END ############################################### Utility functions########################################*/
+    function removeElement(id) {
+        document.getElementById(id).remove();
+    }
+
+    /** ############################################### END Utility functions########################################*/
 
 
     /**
@@ -337,10 +340,13 @@
             div.id = "filterUI";
 
             // create a selectize for selecting columns
-
             var filters = document.createElement("div");
-            filters.id = "filters";
+            filters.id = "filtersSelection";
             filters.style.cssText = "display: flex; flex-direction: row;";
+            var filtersSelectize = document.createElement("div");
+            filtersSelectize.id = "filters";
+            filtersSelectize.style.width="70%";
+            filters.appendChild(filtersSelectize);
 
             var text = document.createTextNode("Wähle Sie die Spalten aus, nach denen gefiltert werden soll:");
             document.getElementById("form").appendChild(text);
@@ -369,40 +375,33 @@
              */
             function addFilter() {
 
+                let filterID = "condition" + (++filterCount)
                 // Get selected column to be filtered
                 let column = getSelectize('#filters')[0];
-                console.log(response);
+                if (typeof column === 'undefined') {
+                    return;
+                }
+                let dataType = response[column];
 
-                let div = document.createElement("div");
-                div.id = "condition" + (++filterCount);
-                div.style.cssText = "display: flex; flex-direction: row;";
+                // create a Textinput for
+                if (dataType === "string") {
+                    let div = document.createElement("div");
+                    div.id = filterID;
 
-                let columnName = document.createElement("Label");
-                columnName.innerHTML = column;
-                div.style.cssText = "  padding: 2px;";
-                div.appendChild(columnName);
+                    let columnName = document.createElement("Label");
+                    columnName.innerHTML = column;
+                    div.style.cssText = "  padding: 2px;";
+                    div.appendChild(columnName);
 
-                // UI for Input text used as a condition
-                let inputGroup = document.createElement("div");
-                inputGroup.className = "input-group mb-3";
-                let input = document.createElement("INPUT");
-                input.type = "text";
-                input.className = "form-control";
-                input.placeholder = "Please Insert a Condition";
-                input.id = "condition-input" + (filterCount);
-
-                let input1 = document.createElement("INPUT");
-                input1.className = "form-control";
-                input1.id = "condition-input" + (filterCount);
-                div.appendChild(input);
-
-                div.innerHTML = `<div class="input-group mb-3">
+                    div.innerHTML = `<label> ${column} </label>
+                                  <div class="input-group mb-3">
                                    <input type="text" class="form-control" placeholder="Insert Filter Condition" aria-label="Recipient's username" aria-describedby="basic-addon2">
                                      <div class="input-group-append">
-                                       <button class="btn btn-outline-secondary" type="button">Remove</button>
+                                       <button onclick="removeElement('${filterID}')" class="btn btn-danger" type="button">Remove</button>
                                      </div>
                                  </div>`;
-                document.getElementById("filterUI").appendChild(div);
+                    document.getElementById("filterUI").appendChild(div);
+                }
 
 
             }
@@ -416,7 +415,7 @@
             button.style.width = "60px";
             button.addEventListener("click", addFilter);
 
-            document.getElementById('filterUI').appendChild(button);
+            document.getElementById('filtersSelection').appendChild(button);
 
             let submit = document.createElement("input");
             submit.type = "button";
@@ -426,7 +425,6 @@
             submit.style.width = "80px";
             submit.addEventListener("click", addFilter);
             document.getElementById('form').appendChild(submit);
-
 
         })
     }
