@@ -1,6 +1,10 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
+from pyspark.sql.functions import col
 from os.path import expanduser, join, abspath
+from functools import reduce
+from operator import and_, or_
+
 import os
 import uuid
 
@@ -71,3 +75,16 @@ class Graph:
         for node in self.nodes.values():
             edges+= node.get_Cyto_edges()
         return edges
+
+def createFilter(conditionParams):
+    conditions = [createCondition(condition) for condition in conditionParams]
+    conditions, labels = zip(*conditions)
+    return reduce(or_, conditions), '\n'.join(labels)
+
+def createCondition(condition):
+    if condition["type"] =="string" and condition["option"] =="RegEx":
+        return col(condition["column"]).rlike(condition["condition"]),\
+               condition["column"]+" RegExp "+"\"" +condition["condition"]+"\""
+
+def createLabel(conditionParams):
+    []

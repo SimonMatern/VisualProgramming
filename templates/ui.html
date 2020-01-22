@@ -12,7 +12,6 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.default.css">
 
@@ -116,6 +115,11 @@
                 'text-halign': 'center',
                 'text-valign': 'center'
             })
+            .selector(':selected').css({
+                'overlay-color': 'blue',
+                'overlay-opacity': 0.5,
+                'overlay-padding': 5
+            })
             .selector('edge')
             .css({
                 'curve-style': 'bezier',
@@ -194,6 +198,16 @@
     function removeFilter(id, inputIDs) {
         delete inputIDs[id];
         removeElement(id);
+    }
+
+    function visualizeResponse(response) {
+        node = JSON.parse(response.node);
+        edges = JSON.parse(response.edges);
+        cy.add([{group: 'nodes', data: node}]);
+        edges.forEach(function (edge, index) {
+            cy.add([{group: 'edges', data: edge}]);
+        });
+        layout.run();
     }
 
     /** ############################################### END Utility functions########################################*/
@@ -387,10 +401,12 @@
                 if (typeof column === 'undefined') {
                     return;
                 }
+                let id = selected[0].data.id;
+
                 let dataType = response[column];
 
 
-                // create a Textinput for
+                // create a text input
                 if (dataType === "string") {
                     let div = document.createElement("div");
                     div.id = filterID;
@@ -425,12 +441,37 @@
 
 
                     inputIDs[filterID] = {
+                        column: column,
                         type: "string",
                         inputs: [conditionID, optionsID]
                     };
-                    console.log(inputIDs);
                 }
 
+
+            }
+
+
+            function sqlFilterResponse() {
+
+                console.log(inputIDs);
+                let conditions = Object.keys(inputIDs).map(function (key, index) {
+                    let elem = inputIDs[key];
+
+                    if (elem.type === "string") {
+                        let inputs = elem["inputs"];
+                        let optionsSelection = document.getElementById(inputs[1]);
+                        let option = optionsSelection.options[optionsSelection.selectedIndex].value;
+                        let condition = document.getElementById(inputs[0]).value;
+                        return {column: elem.column, condition: condition, option: option, type: "string"}
+                    }
+
+                });
+                $.post("sqlFilterResponse", {
+                    id: id,
+                    conditions: JSON.stringify(conditions)
+                }, function (response, status) {
+                    visualizeResponse(response)
+                });
 
             }
 
@@ -450,7 +491,7 @@
             submit.value = "Submit";
             submit.className = "btn btn btn-success";
             submit.style.width = "80px";
-            submit.addEventListener("click", addFilter);
+            submit.addEventListener("click", sqlFilterResponse);
             document.getElementById('form').appendChild(submit);
 
         })
