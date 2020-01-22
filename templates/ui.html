@@ -191,6 +191,11 @@
         document.getElementById(id).remove();
     }
 
+    function removeFilter(id, inputIDs) {
+        delete inputIDs[id];
+        removeElement(id);
+    }
+
     /** ############################################### END Utility functions########################################*/
 
 
@@ -345,7 +350,7 @@
             filters.style.cssText = "display: flex; flex-direction: row;";
             var filtersSelectize = document.createElement("div");
             filtersSelectize.id = "filters";
-            filtersSelectize.style.width="70%";
+            filtersSelectize.style.width = "70%";
             filters.appendChild(filtersSelectize);
 
             var text = document.createTextNode("Wähle Sie die Spalten aus, nach denen gefiltert werden soll:");
@@ -368,6 +373,7 @@
                 maxItems: 1
             });
 
+            let inputIDs = {};
 
             /**
              *  Dynamically adds filter. The type of the filter
@@ -383,6 +389,7 @@
                 }
                 let dataType = response[column];
 
+
                 // create a Textinput for
                 if (dataType === "string") {
                     let div = document.createElement("div");
@@ -393,20 +400,41 @@
                     div.style.cssText = "  padding: 2px;";
                     div.appendChild(columnName);
 
+
+                    // Ids fpr dynamically added UI-Elements
+                    let conditionID = filterID + "-condition";
+                    let optionsID = filterID + "-option";
+                    let removeID = filterID + "-remove";
+
                     div.innerHTML = `<label> ${column} </label>
                                   <div class="input-group mb-3">
-                                   <input type="text" class="form-control" placeholder="Insert Filter Condition" aria-label="Recipient's username" aria-describedby="basic-addon2">
-                                     <div class="input-group-append">
-                                       <button onclick="removeElement('${filterID}')" class="btn btn-danger" type="button">Remove</button>
-                                     </div>
+                                   <input id='${conditionID}' type="text" class="form-control" placeholder="Insert Filter Condition" aria-describedby="basic-addon2">
+                                    <div class="btn-group" role="group">
+                                      <select class="custom-select" id='${optionsID}'>
+                                        <option value="RegEx">RegEx</option>
+                                        <option value="Custom">Custom</option>
+                                      </select>
+                                    </div>
+                                     <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                  </div>
                                  </div>`;
                     document.getElementById("filterUI").appendChild(div);
+                    document.getElementById(removeID).addEventListener("click", function () {
+                        removeFilter(filterID, inputIDs);
+                    });
+
+
+                    inputIDs[filterID] = {
+                        type: "string",
+                        inputs: [conditionID, optionsID]
+                    };
+                    console.log(inputIDs);
                 }
 
 
             }
 
-            var filterCount = 0;
+            let filterCount = 0;
             let button = document.createElement("input");
             button.type = "button";
             button.name = "add";
@@ -414,12 +442,11 @@
             button.className = "btn btn btn-primary";
             button.style.width = "60px";
             button.addEventListener("click", addFilter);
-
             document.getElementById('filtersSelection').appendChild(button);
 
             let submit = document.createElement("input");
             submit.type = "button";
-            submit.name = "add";
+            submit.name = "submit";
             submit.value = "Submit";
             submit.className = "btn btn btn-success";
             submit.style.width = "80px";
