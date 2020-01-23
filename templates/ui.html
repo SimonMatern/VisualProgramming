@@ -7,12 +7,11 @@
     <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
     <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" type="text/css">
     <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.default.css">
 
@@ -35,8 +34,7 @@
         position: absolute;
         left: 205px;
         right: 5px;
-        top: 66%;
-        height: 33%;
+        top: 68%;
         border: 3px solid #73AD21;
     }
 
@@ -75,7 +73,7 @@
     </button>
     <div class="dropdown-container">
         <a href="#" onclick="sqlSelect()">Select </a>
-        <a href="#">Where</a>
+        <a href="#" onclick="sqlFilter()">Filter</a>
         <a href="#">Join</a>
     </div>
     <a href="#sql">Data-Analysis</a>
@@ -116,6 +114,11 @@
                 'text-wrap': 'wrap',
                 'text-halign': 'center',
                 'text-valign': 'center'
+            })
+            .selector(':selected').css({
+                'overlay-color': 'blue',
+                'overlay-opacity': 0.5,
+                'overlay-padding': 5
             })
             .selector('edge')
             .css({
@@ -173,6 +176,42 @@
 
         });
     }) */
+    /**
+     * ############################################### Utility functions#############################################*/
+    function getSelectize(id) {
+
+        let selectize = $(id)[0].selectize;
+
+        let options = selectize.options;
+        let items = selectize.items;
+        let columns = $.map(items, function (value) {
+            return options[value];
+        });
+        let selection = columns.map(x => x.label);
+        return selection;
+    }
+
+    function removeElement(id) {
+        document.getElementById(id).remove();
+    }
+
+    function removeFilter(id, inputIDs) {
+        delete inputIDs[id];
+        removeElement(id);
+    }
+
+    function visualizeResponse(response) {
+        node = JSON.parse(response.node);
+        edges = JSON.parse(response.edges);
+        cy.add([{group: 'nodes', data: node}]);
+        edges.forEach(function (edge, index) {
+            cy.add([{group: 'edges', data: edge}]);
+        });
+        layout.run();
+    }
+
+    /** ############################################### END Utility functions########################################*/
+
 
     /**
      * ########################################################################################################
@@ -243,7 +282,7 @@
                 create: false
             });
 
-             var n = columns.length;
+            var n = columns.length;
             var renameInput = $('#rename').selectize({
                 maxItems: null,
                 valueField: 'id',
@@ -263,9 +302,12 @@
                     return ids.includes(index);
                 });
                 ids = renameInput[0].selectize.getValue();
-                var rename = columns.filter(function (currentValue, index) {
-                    return ids.includes(index);
+
+                var selectize = renameInput[0].selectize;
+                var rename_objects = $.map(selectize.items, function (value) {
+                    return selectize.options[value];
                 });
+                var rename = rename_objects.map(x => x.label);
 
                 //TODO:  Send Response and change visualization of graph
                 $.post("sqlSelectResponse", {
@@ -292,6 +334,167 @@
 
         });
 
+    }
+
+    function sqlFilter() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+
+        let id = selected[0].data.id;
+
+        const form = document.getElementById("form");
+        while (form.firstChild) {
+            form.removeChild(form.firstChild);
+        }
+
+        $.post("sqlFilter", {id: id}, function (response, status) {
+
+            var columns = Object.keys(response);
+            var types = Object.values(response);
+
+            //TODO: Exception handling
+
+            // Selection box with description text for selecting
+            var div = document.createElement("div");
+            div.id = "filterUI";
+
+            // create a selectize for selecting columns
+            var filters = document.createElement("div");
+            filters.id = "filtersSelection";
+            filters.style.cssText = "display: flex; flex-direction: row;";
+            var filtersSelectize = document.createElement("div");
+            filtersSelectize.id = "filters";
+            filtersSelectize.style.width = "70%";
+            filters.appendChild(filtersSelectize);
+
+            var text = document.createTextNode("Wähle Sie die Spalten aus, nach denen gefiltert werden soll:");
+            document.getElementById("form").appendChild(text);
+            div.appendChild(filters);
+            document.getElementById("form").appendChild(div);
+
+
+            var options = [];
+            columns.forEach(function (val, idx) {
+                options.push({id: idx, label: val});
+            });
+            var filtersInput = $('#filters').selectize({
+                maxItems: null,
+                valueField: 'id',
+                labelField: 'label',
+                searchField: 'label',
+                options: options,
+                create: false,
+                maxItems: 1
+            });
+
+            let inputIDs = {};
+
+            /**
+             *  Dynamically adds filter. The type of the filter
+             *  depends on the corresponding data type.
+             */
+            function addFilter() {
+
+                let filterID = "condition" + (++filterCount)
+                // Get selected column to be filtered
+                let column = getSelectize('#filters')[0];
+                if (typeof column === 'undefined') {
+                    return;
+                }
+                let id = selected[0].data.id;
+
+                let dataType = response[column];
+
+
+                // create a text input
+                if (dataType === "string") {
+                    let div = document.createElement("div");
+                    div.id = filterID;
+
+                    let columnName = document.createElement("Label");
+                    columnName.innerHTML = column;
+                    div.style.cssText = "  padding: 2px;";
+                    div.appendChild(columnName);
+
+
+                    // Ids fpr dynamically added UI-Elements
+                    let conditionID = filterID + "-condition";
+                    let optionsID = filterID + "-option";
+                    let removeID = filterID + "-remove";
+
+                    div.innerHTML = `<label> ${column} </label>
+                                  <div class="input-group mb-3">
+                                   <input id='${conditionID}' type="text" class="form-control" placeholder="Insert Filter Condition" aria-describedby="basic-addon2">
+                                    <div class="btn-group" role="group">
+                                      <select class="custom-select" id='${optionsID}'>
+                                        <option value="RegEx">RegEx</option>
+                                        <option value="Custom">Custom</option>
+                                      </select>
+                                    </div>
+                                     <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                  </div>
+                                 </div>`;
+                    document.getElementById("filterUI").appendChild(div);
+                    document.getElementById(removeID).addEventListener("click", function () {
+                        removeFilter(filterID, inputIDs);
+                    });
+
+
+                    inputIDs[filterID] = {
+                        column: column,
+                        type: "string",
+                        inputs: [conditionID, optionsID]
+                    };
+                }
+
+
+            }
+
+
+            function sqlFilterResponse() {
+
+                console.log(inputIDs);
+                let conditions = Object.keys(inputIDs).map(function (key, index) {
+                    let elem = inputIDs[key];
+
+                    if (elem.type === "string") {
+                        let inputs = elem["inputs"];
+                        let optionsSelection = document.getElementById(inputs[1]);
+                        let option = optionsSelection.options[optionsSelection.selectedIndex].value;
+                        let condition = document.getElementById(inputs[0]).value;
+                        return {column: elem.column, condition: condition, option: option, type: "string"}
+                    }
+
+                });
+                $.post("sqlFilterResponse", {
+                    id: id,
+                    conditions: JSON.stringify(conditions)
+                }, function (response, status) {
+                    visualizeResponse(response)
+                });
+
+            }
+
+            let filterCount = 0;
+            let button = document.createElement("input");
+            button.type = "button";
+            button.name = "add";
+            button.value = "Add";
+            button.className = "btn btn btn-primary";
+            button.style.width = "60px";
+            button.addEventListener("click", addFilter);
+            document.getElementById('filtersSelection').appendChild(button);
+
+            let submit = document.createElement("input");
+            submit.type = "button";
+            submit.name = "submit";
+            submit.value = "Submit";
+            submit.className = "btn btn btn-success";
+            submit.style.width = "80px";
+            submit.addEventListener("click", sqlFilterResponse);
+            document.getElementById('form').appendChild(submit);
+
+        })
     }
 
 

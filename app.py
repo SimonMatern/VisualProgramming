@@ -10,6 +10,7 @@ from pyspark.sql import SparkSession
 from utils import *
 from pyspark.sql import HiveContext
 # -------- Spark imports  --------
+
 #os.environ["HADOOP_CONF_DIR"] = "/usr/local/hadoop/etc/hadoop"
 
 spark = get_spark_Session()
@@ -37,11 +38,34 @@ def addDataSource():
     graph.add_node(node)
     return jsonify(node.get_Cyto_node())
 
+
+@app.route('/sqlFilter', methods=['POST'])
+def sqlFilter():
+    id = request.form['id']
+    print(id)
+    node = graph[id]
+    columns = node.df.schema.names
+    data_types = [field.dataType.simpleString() for field in node.df.schema.fields]
+    print(data_types)
+    dictionary = dict(zip(columns, data_types))
+    return dictionary
+
+@app.route('/sqlFilterResponse', methods=['POST'])
+def sqlFilterResponse():
+    conditionsInput = json.loads(request.form['conditions'])
+    id = request.form['id']
+    node = graph[id]
+
+    condition, label = createFilter(conditionsInput)
+    df = node.df.where(condition)
+    node = Node(label="Filter\n"+label,df=df,inputs=[node])
+    graph.add_node(node)
+    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
+
 @app.route('/sqlSelect', methods=['POST'])
 def sqlSelect():
     id = request.form['id']
     print(id)
-    print(graph.nodes)
     node = graph[id]
     return jsonify(node.df.schema.names)
 
@@ -49,6 +73,8 @@ def sqlSelect():
 def sqlSelectResponse():
     columns = eval(request.form['columns'])
     rename = eval(request.form['rename'])
+    print(columns)
+    print(rename)
     id = request.form['id']
     source = graph[id]
     df = None

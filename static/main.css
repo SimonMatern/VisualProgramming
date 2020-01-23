@@ -81,4 +81,9 @@ div.form {
   border: 3px solid #73AD21;
 }
 
+.flex {
+   display: flex;
+   flex-direction: row;
+}
+
 
