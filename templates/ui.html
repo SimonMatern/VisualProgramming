@@ -405,33 +405,32 @@
 
                 let dataType = response[column];
 
+                let div = document.createElement("div");
+                div.id = filterID;
 
-                // create a text input
+                let columnName = document.createElement("Label");
+                columnName.innerHTML = column;
+                div.style.cssText = "  padding: 2px;";
+                div.appendChild(columnName);
+
+
+                // Ids fpr dynamically added UI-Elements
+                let conditionID = filterID + "-condition";
+                let optionsID = filterID + "-option";
+                let removeID = filterID + "-remove";
+
+                // create a text input if the data type is a string
                 if (dataType === "string") {
-                    let div = document.createElement("div");
-                    div.id = filterID;
-
-                    let columnName = document.createElement("Label");
-                    columnName.innerHTML = column;
-                    div.style.cssText = "  padding: 2px;";
-                    div.appendChild(columnName);
-
-
-                    // Ids fpr dynamically added UI-Elements
-                    let conditionID = filterID + "-condition";
-                    let optionsID = filterID + "-option";
-                    let removeID = filterID + "-remove";
-
                     div.innerHTML = `<label> ${column} </label>
                                   <div class="input-group mb-3">
-                                   <input id='${conditionID}' type="text" class="form-control" placeholder="Insert Filter Condition" aria-describedby="basic-addon2">
                                     <div class="btn-group" role="group">
+                                    <input id='${conditionID}' type="text" class="form-control" placeholder="Insert Filter Condition" aria-describedby="basic-addon2">
                                       <select class="custom-select" id='${optionsID}'>
                                         <option value="RegEx">RegEx</option>
                                         <option value="Custom">Custom</option>
                                       </select>
-                                    </div>
                                      <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                    </div>
                                   </div>
                                  </div>`;
                     document.getElementById("filterUI").appendChild(div);
@@ -448,12 +447,54 @@
                 }
 
 
+                //TODO: improve check for datatype
+                if (["int", "bigint", "double"].includes(dataType)) {
+                    let lowerLimitID = conditionID + "-lower";
+                    let upperLimitID = conditionID + "-upper";
+                    let lowerOptionsID = optionsID + "-lower";
+                    let upperOptionsID = optionsID + "-upper";
+
+                    div.innerHTML = `<label> ${column} </label>
+                                  <div class="input-group">
+                                    <div class="btn-group" role="group">
+                                      <select class="custom-select" id='${lowerOptionsID}'>
+                                        <option value="[">[</option>
+                                        <option value="(">(</option>
+                                      </select>
+                                     <input id='${lowerLimitID}' type="number" class="form-control" placeholder="0.0" aria-describedby="basic-addon2">
+                                     <span class="input-group-text">,</span>
+                                     <input id='${upperLimitID}' type="number" class="form-control" placeholder="1.0" aria-describedby="basic-addon2">
+                                      <select class="custom-select" id='${upperOptionsID}'>
+                                        <option value="]">]</option>
+                                        <option value=")">)</option>
+                                      </select>
+                                    </div>
+                                     <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                  </div>
+                                 </div>`;
+                    document.getElementById("filterUI").appendChild(div);
+                    document.getElementById(removeID).addEventListener("click", function () {
+                        removeFilter(filterID, inputIDs);
+                    });
+
+
+                    inputIDs[filterID] = {
+                        column: column,
+                        type: "numerical",
+                        inputs: [lowerLimitID, upperLimitID, lowerOptionsID, upperOptionsID]
+                    };
+                }
+
             }
 
 
             function sqlFilterResponse() {
 
-                console.log(inputIDs);
+
+                /**
+                 Iterate over all conditions and generate a dictionary that will be send to the server.
+                 Each data type creates a different dictionary used for filtering.
+                 */
                 let conditions = Object.keys(inputIDs).map(function (key, index) {
                     let elem = inputIDs[key];
 
@@ -464,8 +505,24 @@
                         let condition = document.getElementById(inputs[0]).value;
                         return {column: elem.column, condition: condition, option: option, type: "string"}
                     }
+                    if (elem.type === "numerical"){
+                        let inputs = elem["inputs"];
+
+                        let lowerBound = document.getElementById(inputs[0]).value;
+                        let lowerBoundSelection = document.getElementById(inputs[2]);
+                        let lowerBoundType = lowerBoundSelection.options[lowerBoundSelection.selectedIndex].value;
+
+                        let upperBound = document.getElementById(inputs[1]).value;
+                        let upperBoundSelection = document.getElementById(inputs[3]);
+                        let upperBoundType = upperBoundSelection.options[upperBoundSelection.selectedIndex].value;
+
+                        return {column: elem.column, lowerBoundType: lowerBoundType, upperBoundType:upperBoundType, lowerBound: lowerBound, upperBound: upperBound, type: "numerical"}
+                    }
 
                 });
+
+                console.log(conditions);
+
                 $.post("sqlFilterResponse", {
                     id: id,
                     conditions: JSON.stringify(conditions)

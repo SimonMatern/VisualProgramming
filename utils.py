@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, lit
 from os.path import expanduser, join, abspath
 from functools import reduce
 from operator import and_, or_
@@ -86,5 +86,36 @@ def createCondition(condition):
         return col(condition["column"]).rlike(condition["condition"]),\
                condition["column"]+" RegExp "+"\"" +condition["condition"]+"\""
 
-def createLabel(conditionParams):
-    []
+    if condition["type"] == "numerical":
+        print(condition)
+
+        cond1, cond2 = lit(True), lit(True)
+        label_lower = ""
+        label_upper = ""
+
+        if condition["lowerBound"] != "":
+            if condition["lowerBoundType"]== "[":
+                cond1 = col(condition["column"]) >= eval(condition["lowerBound"])
+                label_lower = condition["column"] + " >= " + condition["lowerBound"]
+            else:
+                cond1 = col(condition["column"])  > condition["lowerBound"]
+                label_lower = condition["column"] + " > " + condition["lowerBound"]
+
+        if condition["upperBound"] != "":
+            if condition["upperBoundType"]== "]":
+                cond2 = col(condition["column"]) <= condition["upperBound"]
+                label_upper = condition["column"] + " <= " + condition["upperBound"]
+
+            else:
+                cond2 = col(condition["column"])  < condition["upperBound"]
+                label_upper = condition["column"] + " < " + condition["upperBound"]
+
+        label = ""
+        if label_upper=="":
+            label = label_lower
+        elif label_lower=="":
+            label = label_upper
+        else:
+            label = label_lower + " & " + label_upper
+        return and_(cond1,cond2), label
+
