@@ -467,9 +467,9 @@
                                         <option value="[">[</option>
                                         <option value="(">(</option>
                                       </select>
-                                     <input id='${lowerLimitID}' type="number" class="form-control" placeholder="0.0" aria-describedby="basic-addon2">
+                                     <input id='${lowerLimitID}' type="number" class="form-control" placeholder="-&#8734" aria-describedby="basic-addon2">
                                      <span class="input-group-text">,</span>
-                                     <input id='${upperLimitID}' type="number" class="form-control" placeholder="1.0" aria-describedby="basic-addon2">
+                                     <input id='${upperLimitID}' type="number" class="form-control" placeholder="&#8734" aria-describedby="basic-addon2">
                                       <select class="custom-select" id='${upperOptionsID}'>
                                         <option value="]">]</option>
                                         <option value=")">)</option>
@@ -482,7 +482,6 @@
                         document.getElementById(removeID).addEventListener("click", function () {
                             removeFilter(filterID, inputIDs);
                         });
-
 
                         inputIDs[filterID] = {
                             column: column,
@@ -545,45 +544,80 @@
                 if (filterType === "Range Slider") {
                     let dataType = response[column];
 
-                    // Ids for dynamically added UI-Elements
-                    let conditionID = filterID + "-condition";
-                    let removeID = filterID + "-remove";
-                    let sliderID = conditionID + "-slider";
-                    let lowerLimitID = conditionID + "-lower";
-                    let upperLimitID = conditionID + "-upper";
+                    if (!["int", "bigint", "double"].includes(dataType)) {
+                        return;
+                    }
+
+                    $.post("sqlGetRange", {
+                        id: id, column: column
+                    }, function (response, status) {
+                        // Ids for dynamically added UI-Elements
+                        let conditionID = filterID + "-condition";
+                        let removeID = filterID + "-remove";
+                        let sliderID = filterID + "-slider";
+                        let lowerLimitID = conditionID + "-lower";
+                        let upperLimitID = conditionID + "-upper";
 
 
-                    div.innerHTML = `<label> ${column} </label>
-                                  <div id='${sliderID}'></div>
+                        div.innerHTML = `<label> ${column} </label>
+                                  <div style="padding-bottom:5px;padding-left:5px;padding-right:5px;"><div id='${sliderID}'></div></div>
                                   <div class="input-group">
                                     <div class="btn-group" role="group">
-                                     <input id='${lowerLimitID}' type="number" class="form-control" placeholder="0.0" aria-describedby="basic-addon2">
-                                     <input id='${upperLimitID}' type="number" class="form-control" placeholder="1.0" aria-describedby="basic-addon2">
+                                     <span class="input-group-text">Lower Bound:</span>
+                                     <input id='${lowerLimitID}' type="number" class="form-control" placeholder="-&#8734;" aria-describedby="basic-addon2">
+                                     <span class="input-group-text">Upper Bound:</span>
+                                     <input id='${upperLimitID}' type="number" class="form-control" placeholder="&#8734;" aria-describedby="basic-addon2">
                                     </div>
                                      <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
-                                  </div>
-                                 </div>`;
-                    document.getElementById("filterUI").appendChild(div);
-                    document.getElementById(removeID).addEventListener("click", function () {
-                        removeFilter(filterID, inputIDs);
+                                    </div>
+                                    <hr>`;
+                        document.getElementById("filterUI").appendChild(div);
+                        document.getElementById(removeID).addEventListener("click", function () {
+                            removeFilter(filterID, inputIDs);
+                        });
+
+                        let min = response[0];
+                        let max = response[1];
+
+                        var slider = document.getElementById(sliderID);
+
+                        noUiSlider.create(slider, {
+                            start: [min + 0.2 * (max - min), min + 0.8 * (max - min)],
+                            connect: true,
+                            range: {
+                                'min': min,
+                                'max': max
+                            }
+                        });
+
+                        let inputLowerBound = document.getElementById(lowerLimitID);
+                        let inputUpperBound = document.getElementById(upperLimitID);
+
+                        //if the slider is updated change the inputs
+                        slider.noUiSlider.on('update', function (values, handle) {
+                            let value = values[handle];
+                            if (handle) {
+                                inputUpperBound.value = value;
+                            } else {
+                                inputLowerBound.value = value;
+                            }
+                        });
+
+                        inputLowerBound.addEventListener('change', function () {
+                            slider.noUiSlider.set([this.value, null]);
+                        });
+
+                        inputUpperBound.addEventListener('change', function () {
+                            slider.noUiSlider.set([null, this.value]);
+                        });
+
+                        inputIDs[filterID] = {
+                            column: column,
+                            type: "range",
+                            inputs: [lowerLimitID, upperLimitID]
+                        };
                     });
 
-                    var slider = document.getElementById(sliderID);
-
-                    noUiSlider.create(slider, {
-                        start: [20, 80],
-                        connect: true,
-                        range: {
-                            'min': 0,
-                            'max': 100
-                        }
-                    });
-
-                    inputIDs[filterID] = {
-                        column: column,
-                        type: "numerical",
-                        inputs: [lowerLimitID, upperLimitID]
-                    };
                 }
 
 
@@ -629,20 +663,38 @@
                             lowerBound: lowerBound,
                             upperBound: upperBound,
                             type: "numerical"
-                        }
+                        };
                     }
 
-                    if (elem.type === "selectize") {
-                        let selectedValues = getSelectize("#" + elem['inputs'][0]);
-                        console.log(selectedValues)
-                        return {
-                            column: elem.column,
-                            list: selectedValues,
-                            type: "selectize"
-                        }
-                    }
+                        if (elem.type === "range") {
+                            let inputs = elem["inputs"];
 
-                });
+                            let lowerBound = document.getElementById(inputs[0]).value;
+                            let upperBound = document.getElementById(inputs[1]).value;
+
+                            return {
+                                column: elem.column,
+                                lowerBoundType: "[",
+                                upperBoundType: "]",
+                                lowerBound: lowerBound,
+                                upperBound: upperBound,
+                                type: "numerical"
+                            }
+
+                        }
+
+                        if (elem.type === "selectize") {
+                            let selectedValues = getSelectize("#" + elem['inputs'][0]);
+                            console.log(selectedValues)
+                            return {
+                                column: elem.column,
+                                list: selectedValues,
+                                type: "selectize"
+                            }
+                        }
+
+                    }
+                );
 
                 console.log(conditions);
 

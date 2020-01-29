@@ -88,12 +88,19 @@ def sqlSelectResponse():
 
 
 @app.route('/sqlGetUnique', methods=['POST'])
-def get_node_ui():
+def sqlGetUnique():
     id = request.form['id']
     column = request.form['column']
     node = graph[id]
     return jsonify(node.df.select(column).distinct().rdd.flatMap(lambda x: x).collect())
 
+
+@app.route('/sqlGetRange', methods=['POST'])
+def sqlGetRange():
+    id = request.form['id']
+    column = request.form['column']
+    df = graph[id].df
+    return jsonify(df.select(column).rdd.min()[0],df.select(column).rdd.max()[0])
 
 if __name__ == '__main__':
     app.run()
