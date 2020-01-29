@@ -15,6 +15,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.default.css">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.js"></script>
+
+
 </head>
 
 <style>
@@ -370,8 +374,8 @@
                                       <select class="custom-select" id='filter-columns'></select>
                                     <div class="btn-group" role="group">
                                       <select class="custom-select" id='filter-type'>
-                                          <option>Predefined Filter</option>
-                                          <option selected>Selectize</option>
+                                          <option selected>Predefined Filter</option>
+                                          <option >Selectize</option>
                                           <option>Range Slider</option>
                                       </select>
                                      <button id='addFilter' class="btn btn btn-primary" type="button">ADD</button>
@@ -408,19 +412,18 @@
                 let filterTypeSelection = document.getElementById("filter-type");
                 let filterType = filterTypeSelection.options[filterTypeSelection.selectedIndex].value;
 
+                let div = document.createElement("div");
+                div.id = filterID;
+
+                let columnName = document.createElement("Label");
+                columnName.innerHTML = column;
+                div.style.cssText = "  padding: 2px;";
+                div.appendChild(columnName);
+
                 if (filterType === "Predefined Filter") {
                     let dataType = response[column];
 
-                    let div = document.createElement("div");
-                    div.id = filterID;
-
-                    let columnName = document.createElement("Label");
-                    columnName.innerHTML = column;
-                    div.style.cssText = "  padding: 2px;";
-                    div.appendChild(columnName);
-
-
-                    // Ids fpr dynamically added UI-Elements
+                    // Ids for dynamically added UI-Elements
                     let conditionID = filterID + "-condition";
                     let optionsID = filterID + "-option";
                     let removeID = filterID + "-remove";
@@ -490,20 +493,97 @@
                 }
                 if (filterType === "Selectize") {
 
+
+                    let conditionID = filterID + "-condition";
+                    let removeID = filterID + "-remove";
+
                     let dataType = response[column];
                     let div = document.createElement("div");
                     div.id = filterID;
 
 
                     $.post("sqlGetUnique", {
-                        id: id,
+                        id: id, column: column
                     }, function (response, status) {
+                        var filterSelection = response;
+
+                        div.innerHTML = `<label> ${column} </label>
+                                         <div class="input-group">
+                                            <div id="${conditionID}" style="width:90%;"></div>
+                                            <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                          </div>`;
+
+                        document.getElementById("filterUI").appendChild(div);
+                        document.getElementById(removeID).addEventListener("click", function () {
+                            removeFilter(filterID, inputIDs);
+                        });
+
+                        var options = [];
+                        filterSelection.forEach(function (val, idx) {
+                            options.push({id: idx, label: val});
+                        });
+
+                        var selectizeInput = $('#' + conditionID).selectize({
+                            maxItems: null,
+                            valueField: 'id',
+                            labelField: 'label',
+                            searchField: 'label',
+                            options: options,
+                            create: false
+                        });
+
+                        inputIDs[filterID] = {
+                            column: column,
+                            type: "selectize",
+                            inputs: [conditionID]
+                        };
                     });
 
 
                 }
-                if (filterType === "Range Slider") {
 
+                if (filterType === "Range Slider") {
+                    let dataType = response[column];
+
+                    // Ids for dynamically added UI-Elements
+                    let conditionID = filterID + "-condition";
+                    let removeID = filterID + "-remove";
+                    let sliderID = conditionID + "-slider";
+                    let lowerLimitID = conditionID + "-lower";
+                    let upperLimitID = conditionID + "-upper";
+
+
+                    div.innerHTML = `<label> ${column} </label>
+                                  <div id='${sliderID}'></div>
+                                  <div class="input-group">
+                                    <div class="btn-group" role="group">
+                                     <input id='${lowerLimitID}' type="number" class="form-control" placeholder="0.0" aria-describedby="basic-addon2">
+                                     <input id='${upperLimitID}' type="number" class="form-control" placeholder="1.0" aria-describedby="basic-addon2">
+                                    </div>
+                                     <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                  </div>
+                                 </div>`;
+                    document.getElementById("filterUI").appendChild(div);
+                    document.getElementById(removeID).addEventListener("click", function () {
+                        removeFilter(filterID, inputIDs);
+                    });
+
+                    var slider = document.getElementById(sliderID);
+
+                    noUiSlider.create(slider, {
+                        start: [20, 80],
+                        connect: true,
+                        range: {
+                            'min': 0,
+                            'max': 100
+                        }
+                    });
+
+                    inputIDs[filterID] = {
+                        column: column,
+                        type: "numerical",
+                        inputs: [lowerLimitID, upperLimitID]
+                    };
                 }
 
 
@@ -512,6 +592,7 @@
 
             function sqlFilterResponse() {
 
+                console.log(inputIDs);
 
                 /**
                  Iterate over all conditions and generate a dictionary that will be send to the server.
@@ -520,6 +601,7 @@
                 let conditions = Object.keys(inputIDs).map(function (key, index) {
                     let elem = inputIDs[key];
 
+                    // If the filter was created using the predefined option for string columns
                     if (elem.type === "string") {
                         let inputs = elem["inputs"];
                         let optionsSelection = document.getElementById(inputs[1]);
@@ -527,6 +609,8 @@
                         let condition = document.getElementById(inputs[0]).value;
                         return {column: elem.column, condition: condition, option: option, type: "string"}
                     }
+
+                    // If the filter was created using the predefined option for numerical values
                     if (elem.type === "numerical") {
                         let inputs = elem["inputs"];
 
@@ -545,6 +629,16 @@
                             lowerBound: lowerBound,
                             upperBound: upperBound,
                             type: "numerical"
+                        }
+                    }
+
+                    if (elem.type === "selectize") {
+                        let selectedValues = getSelectize("#" + elem['inputs'][0]);
+                        console.log(selectedValues)
+                        return {
+                            column: elem.column,
+                            list: selectedValues,
+                            type: "selectize"
                         }
                     }
 

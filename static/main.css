@@ -86,4 +86,6 @@ div.form {
    flex-direction: row;
 }
 
-
+.selectize-control {
+  width: 90% !important;
+}
