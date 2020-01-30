@@ -15,6 +15,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.default.css">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.js"></script>
+
+
 </head>
 
 <style>
@@ -336,6 +340,10 @@
 
     }
 
+    /**
+     * This function is triggered by clicking on "Filter".
+     * An UI is dynamically created for a filtering a selected Data Frame.
+     */
     function sqlFilter() {
         let selected = cy.$(':selected').jsons();
         if (selected.length != 1) return;
@@ -353,7 +361,6 @@
             var types = Object.values(response);
 
             //TODO: Exception handling
-
             // Selection box with description text for selecting
             var div = document.createElement("div");
             div.id = "filterUI";
@@ -361,31 +368,32 @@
             // create a selectize for selecting columns
             var filters = document.createElement("div");
             filters.id = "filtersSelection";
-            filters.style.cssText = "display: flex; flex-direction: row;";
-            var filtersSelectize = document.createElement("div");
-            filtersSelectize.id = "filters";
-            filtersSelectize.style.width = "70%";
-            filters.appendChild(filtersSelectize);
 
-            var text = document.createTextNode("Wähle Sie die Spalten aus, nach denen gefiltert werden soll:");
-            document.getElementById("form").appendChild(text);
+            filters.innerHTML = `<label> Select column to be filtered: </label>
+                                  <div class="input-group mb-3">
+                                      <select class="custom-select" id='filter-columns'></select>
+                                    <div class="btn-group" role="group">
+                                      <select class="custom-select" id='filter-type'>
+                                          <option selected>Predefined Filter</option>
+                                          <option >Selectize</option>
+                                          <option>Range Slider</option>
+                                      </select>
+                                     <button id='addFilter' class="btn btn btn-primary" type="button">ADD</button>
+                                    </div>
+                                  </div>
+                                 </div>`;
             div.appendChild(filters);
             document.getElementById("form").appendChild(div);
 
+            // add options to select-input
+            let selectList = document.getElementById("filter-columns");
+            for (var i = 0; i < columns.length; i++) {
+                var option = document.createElement("option");
+                option.value = columns[i];
+                option.text = columns[i];
+                selectList.appendChild(option);
+            }
 
-            var options = [];
-            columns.forEach(function (val, idx) {
-                options.push({id: idx, label: val});
-            });
-            var filtersInput = $('#filters').selectize({
-                maxItems: null,
-                valueField: 'id',
-                labelField: 'label',
-                searchField: 'label',
-                options: options,
-                create: false,
-                maxItems: 1
-            });
 
             let inputIDs = {};
 
@@ -395,56 +403,221 @@
              */
             function addFilter() {
 
-                let filterID = "condition" + (++filterCount)
+                let filterID = "condition" + (++filterCount);
                 // Get selected column to be filtered
-                let column = getSelectize('#filters')[0];
-                if (typeof column === 'undefined') {
-                    return;
-                }
-                let id = selected[0].data.id;
 
-                let dataType = response[column];
+                let columnSelection = document.getElementById("filter-columns");
+                let column = columnSelection.options[columnSelection.selectedIndex].value;
 
+                let filterTypeSelection = document.getElementById("filter-type");
+                let filterType = filterTypeSelection.options[filterTypeSelection.selectedIndex].value;
 
-                // create a text input
-                if (dataType === "string") {
-                    let div = document.createElement("div");
-                    div.id = filterID;
+                let div = document.createElement("div");
+                div.id = filterID;
 
-                    let columnName = document.createElement("Label");
-                    columnName.innerHTML = column;
-                    div.style.cssText = "  padding: 2px;";
-                    div.appendChild(columnName);
+                let columnName = document.createElement("Label");
+                columnName.innerHTML = column;
+                div.style.cssText = "  padding: 2px;";
+                div.appendChild(columnName);
 
+                if (filterType === "Predefined Filter") {
+                    let dataType = response[column];
 
-                    // Ids fpr dynamically added UI-Elements
+                    // Ids for dynamically added UI-Elements
                     let conditionID = filterID + "-condition";
                     let optionsID = filterID + "-option";
                     let removeID = filterID + "-remove";
 
-                    div.innerHTML = `<label> ${column} </label>
+                    // create a text input if the data type is a string
+                    if (dataType === "string") {
+                        div.innerHTML = `<label> ${column} </label>
                                   <div class="input-group mb-3">
-                                   <input id='${conditionID}' type="text" class="form-control" placeholder="Insert Filter Condition" aria-describedby="basic-addon2">
+                                    <input id='${conditionID}' type="text" class="form-control" placeholder="Insert Filter Condition" aria-describedby="basic-addon2">
                                     <div class="btn-group" role="group">
                                       <select class="custom-select" id='${optionsID}'>
                                         <option value="RegEx">RegEx</option>
                                         <option value="Custom">Custom</option>
                                       </select>
+                                     <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                    </div>
+                                  </div>
+                                 </div>`;
+                        document.getElementById("filterUI").appendChild(div);
+                        document.getElementById(removeID).addEventListener("click", function () {
+                            removeFilter(filterID, inputIDs);
+                        });
+
+                        inputIDs[filterID] = {
+                            column: column,
+                            type: "string",
+                            inputs: [conditionID, optionsID]
+                        };
+                    }
+                    //TODO: improve check for datatype
+                    if (["int", "bigint", "double"].includes(dataType)) {
+                        let lowerLimitID = conditionID + "-lower";
+                        let upperLimitID = conditionID + "-upper";
+                        let lowerOptionsID = optionsID + "-lower";
+                        let upperOptionsID = optionsID + "-upper";
+
+                        div.innerHTML = `<label> ${column} </label>
+                                  <div class="input-group">
+                                    <div class="btn-group" role="group">
+                                      <select class="custom-select" id='${lowerOptionsID}'>
+                                        <option value="[">[</option>
+                                        <option value="(">(</option>
+                                      </select>
+                                     <input id='${lowerLimitID}' type="number" class="form-control" placeholder="-&#8734" aria-describedby="basic-addon2">
+                                     <span class="input-group-text">,</span>
+                                     <input id='${upperLimitID}' type="number" class="form-control" placeholder="&#8734" aria-describedby="basic-addon2">
+                                      <select class="custom-select" id='${upperOptionsID}'>
+                                        <option value="]">]</option>
+                                        <option value=")">)</option>
+                                      </select>
                                     </div>
                                      <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
                                   </div>
                                  </div>`;
-                    document.getElementById("filterUI").appendChild(div);
-                    document.getElementById(removeID).addEventListener("click", function () {
-                        removeFilter(filterID, inputIDs);
+                        document.getElementById("filterUI").appendChild(div);
+                        document.getElementById(removeID).addEventListener("click", function () {
+                            removeFilter(filterID, inputIDs);
+                        });
+
+                        inputIDs[filterID] = {
+                            column: column,
+                            type: "numerical",
+                            inputs: [lowerLimitID, upperLimitID, lowerOptionsID, upperOptionsID]
+                        };
+                    }
+                }
+                if (filterType === "Selectize") {
+
+
+                    let conditionID = filterID + "-condition";
+                    let removeID = filterID + "-remove";
+
+                    let dataType = response[column];
+                    let div = document.createElement("div");
+                    div.id = filterID;
+
+
+                    $.post("sqlGetUnique", {
+                        id: id, column: column
+                    }, function (response, status) {
+                        var filterSelection = response;
+
+                        div.innerHTML = `<label> ${column} </label>
+                                         <div class="input-group">
+                                            <div id="${conditionID}" style="width:90%;"></div>
+                                            <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                          </div>`;
+
+                        document.getElementById("filterUI").appendChild(div);
+                        document.getElementById(removeID).addEventListener("click", function () {
+                            removeFilter(filterID, inputIDs);
+                        });
+
+                        var options = [];
+                        filterSelection.forEach(function (val, idx) {
+                            options.push({id: idx, label: val});
+                        });
+
+                        var selectizeInput = $('#' + conditionID).selectize({
+                            maxItems: null,
+                            valueField: 'id',
+                            labelField: 'label',
+                            searchField: 'label',
+                            options: options,
+                            create: false
+                        });
+
+                        inputIDs[filterID] = {
+                            column: column,
+                            type: "selectize",
+                            inputs: [conditionID]
+                        };
                     });
 
 
-                    inputIDs[filterID] = {
-                        column: column,
-                        type: "string",
-                        inputs: [conditionID, optionsID]
-                    };
+                }
+
+                if (filterType === "Range Slider") {
+                    let dataType = response[column];
+
+                    if (!["int", "bigint", "double"].includes(dataType)) {
+                        return;
+                    }
+
+                    $.post("sqlGetRange", {
+                        id: id, column: column
+                    }, function (response, status) {
+                        // Ids for dynamically added UI-Elements
+                        let conditionID = filterID + "-condition";
+                        let removeID = filterID + "-remove";
+                        let sliderID = filterID + "-slider";
+                        let lowerLimitID = conditionID + "-lower";
+                        let upperLimitID = conditionID + "-upper";
+
+
+                        div.innerHTML = `<label> ${column} </label>
+                                  <div style="padding-bottom:5px;padding-left:5px;padding-right:5px;"><div id='${sliderID}'></div></div>
+                                  <div class="input-group">
+                                    <div class="btn-group" role="group">
+                                     <span class="input-group-text">Lower Bound:</span>
+                                     <input id='${lowerLimitID}' type="number" class="form-control" placeholder="-&#8734;" aria-describedby="basic-addon2">
+                                     <span class="input-group-text">Upper Bound:</span>
+                                     <input id='${upperLimitID}' type="number" class="form-control" placeholder="&#8734;" aria-describedby="basic-addon2">
+                                    </div>
+                                     <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                    </div>
+                                    <hr>`;
+                        document.getElementById("filterUI").appendChild(div);
+                        document.getElementById(removeID).addEventListener("click", function () {
+                            removeFilter(filterID, inputIDs);
+                        });
+
+                        let min = response[0];
+                        let max = response[1];
+
+                        var slider = document.getElementById(sliderID);
+
+                        noUiSlider.create(slider, {
+                            start: [min + 0.2 * (max - min), min + 0.8 * (max - min)],
+                            connect: true,
+                            range: {
+                                'min': min,
+                                'max': max
+                            }
+                        });
+
+                        let inputLowerBound = document.getElementById(lowerLimitID);
+                        let inputUpperBound = document.getElementById(upperLimitID);
+
+                        //if the slider is updated change the inputs
+                        slider.noUiSlider.on('update', function (values, handle) {
+                            let value = values[handle];
+                            if (handle) {
+                                inputUpperBound.value = value;
+                            } else {
+                                inputLowerBound.value = value;
+                            }
+                        });
+
+                        inputLowerBound.addEventListener('change', function () {
+                            slider.noUiSlider.set([this.value, null]);
+                        });
+
+                        inputUpperBound.addEventListener('change', function () {
+                            slider.noUiSlider.set([null, this.value]);
+                        });
+
+                        inputIDs[filterID] = {
+                            column: column,
+                            type: "range",
+                            inputs: [lowerLimitID, upperLimitID]
+                        };
+                    });
+
                 }
 
 
@@ -454,9 +627,15 @@
             function sqlFilterResponse() {
 
                 console.log(inputIDs);
+
+                /**
+                 Iterate over all conditions and generate a dictionary that will be send to the server.
+                 Each data type creates a different dictionary used for filtering.
+                 */
                 let conditions = Object.keys(inputIDs).map(function (key, index) {
                     let elem = inputIDs[key];
 
+                    // If the filter was created using the predefined option for string columns
                     if (elem.type === "string") {
                         let inputs = elem["inputs"];
                         let optionsSelection = document.getElementById(inputs[1]);
@@ -465,7 +644,60 @@
                         return {column: elem.column, condition: condition, option: option, type: "string"}
                     }
 
-                });
+                    // If the filter was created using the predefined option for numerical values
+                    if (elem.type === "numerical") {
+                        let inputs = elem["inputs"];
+
+                        let lowerBound = document.getElementById(inputs[0]).value;
+                        let lowerBoundSelection = document.getElementById(inputs[2]);
+                        let lowerBoundType = lowerBoundSelection.options[lowerBoundSelection.selectedIndex].value;
+
+                        let upperBound = document.getElementById(inputs[1]).value;
+                        let upperBoundSelection = document.getElementById(inputs[3]);
+                        let upperBoundType = upperBoundSelection.options[upperBoundSelection.selectedIndex].value;
+
+                        return {
+                            column: elem.column,
+                            lowerBoundType: lowerBoundType,
+                            upperBoundType: upperBoundType,
+                            lowerBound: lowerBound,
+                            upperBound: upperBound,
+                            type: "numerical"
+                        };
+                    }
+
+                        if (elem.type === "range") {
+                            let inputs = elem["inputs"];
+
+                            let lowerBound = document.getElementById(inputs[0]).value;
+                            let upperBound = document.getElementById(inputs[1]).value;
+
+                            return {
+                                column: elem.column,
+                                lowerBoundType: "[",
+                                upperBoundType: "]",
+                                lowerBound: lowerBound,
+                                upperBound: upperBound,
+                                type: "numerical"
+                            }
+
+                        }
+
+                        if (elem.type === "selectize") {
+                            let selectedValues = getSelectize("#" + elem['inputs'][0]);
+                            console.log(selectedValues)
+                            return {
+                                column: elem.column,
+                                list: selectedValues,
+                                type: "selectize"
+                            }
+                        }
+
+                    }
+                );
+
+                console.log(conditions);
+
                 $.post("sqlFilterResponse", {
                     id: id,
                     conditions: JSON.stringify(conditions)
@@ -476,14 +708,8 @@
             }
 
             let filterCount = 0;
-            let button = document.createElement("input");
-            button.type = "button";
-            button.name = "add";
-            button.value = "Add";
-            button.className = "btn btn btn-primary";
-            button.style.width = "60px";
+            let button = document.getElementById("addFilter");
             button.addEventListener("click", addFilter);
-            document.getElementById('filtersSelection').appendChild(button);
 
             let submit = document.createElement("input");
             submit.type = "button";

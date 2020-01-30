@@ -86,13 +86,21 @@ def sqlSelectResponse():
     graph.add_node(node)
     return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
 
-@app.route('/get_node_ui', methods=['GET', 'POST'])
-def get_node_ui():
-    if request.method == 'POST':
-        jsdata = request.form['data']
-    return "RPC-Flask"
+
+@app.route('/sqlGetUnique', methods=['POST'])
+def sqlGetUnique():
+    id = request.form['id']
+    column = request.form['column']
+    node = graph[id]
+    return jsonify(node.df.select(column).distinct().rdd.flatMap(lambda x: x).collect())
 
 
+@app.route('/sqlGetRange', methods=['POST'])
+def sqlGetRange():
+    id = request.form['id']
+    column = request.form['column']
+    df = graph[id].df
+    return jsonify(df.select(column).rdd.min()[0],df.select(column).rdd.max()[0])
 
 if __name__ == '__main__':
     app.run()
