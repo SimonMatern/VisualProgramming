@@ -36,8 +36,7 @@ def addDataSource():
     id = request.form['id']
     node = Source(id)
     graph.add_node(node)
-    return jsonify(node.get_Cyto_node())
-
+    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
 
 @app.route('/sqlFilter', methods=['POST'])
 def sqlFilter():
@@ -78,11 +77,14 @@ def sqlSelectResponse():
     id = request.form['id']
     source = graph[id]
     df = None
+    label = "Select " + ", ".join(columns)
+
     if len(columns)==len(rename):
         df = source.df.select(columns).toDF(*rename)
+        label+= "\nAS " + ", ".join(rename)
     else:
         df = source.df.select(columns)
-    node = Node(label="Select",df=df,inputs=[source])
+    node = Node(label=label,df=df,inputs=[source])
     graph.add_node(node)
     return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
 

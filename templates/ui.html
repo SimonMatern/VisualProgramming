@@ -13,6 +13,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
+    <script src="https://cdn.rawgit.com/cpettitt/dagre/v0.7.4/dist/dagre.min.js"></script>
+    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.default.css">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.css">
@@ -142,44 +144,16 @@
         cy.add([{group: 'edges', data: edge}]);
     });
 
-    var layout = cy.layout({
-        name: 'breadthfirst',
-        directed: true
+    let layout = cy.layout({
+        name: 'dagre',
+        rankDir: "LR",
+        directed: true,
+        animate: true
     });
     layout.run();
 
 
-    /*
-    cy.on('click', function (evt) {
 
-
-        //Get mouse-click position
-        var x = evt.position.x;
-        var y = evt.position.y;
-        //get Selected nodes and edges
-        var selected = cy.$(':selected').jsons();
-
-        // POST to Flask-Server
-        $.post("/get_node_ui", {
-            data: JSON.stringify(selected)
-        }, function (err, req, resp) {
-        });
-
-        var newNodeId = count;
-        cy.add([{group: 'nodes', data: {id: newNodeId, label: newNodeId}, position: {x: x, y: y}}]);
-        count++;
-
-
-        selected.forEach(function (element, idx) {
-            if (element.group == "nodes") {
-                cy.add({group: 'edges', data: {id: count, source: element.data.id, target: newNodeId}})
-                count++;
-
-            }
-            console.log(element);
-
-        });
-    }) */
     /**
      * ############################################### Utility functions#############################################*/
     function getSelectize(id) {
@@ -211,6 +185,12 @@
         edges.forEach(function (edge, index) {
             cy.add([{group: 'edges', data: edge}]);
         });
+        let layout = cy.layout({
+            name: 'dagre',
+            rankDir: "LR",
+            directed: true,
+            animate: true
+        });
         layout.run();
     }
 
@@ -231,8 +211,8 @@
      * @param id The name of Hive table
      */
     function addDataSource(id) {
-        $.post("addDataSource", {id: id}, function (val, status) {
-            cy.add([{group: 'nodes', data: val}]);
+        $.post("addDataSource", {id: id}, function (response, status) {
+            visualizeResponse(response)
         });
     }
 
@@ -319,11 +299,7 @@
                     rename: JSON.stringify(rename),
                     id: id
                 }, function (response, status) {
-                    console.log(response);
-                    node = JSON.parse(response.node);
-                    edge = JSON.parse(response.edges)[0];
-                    cy.add([{group: 'nodes', data: node}]);
-                    cy.add([{group: 'edges', data: edge}]);
+                    visualizeResponse(response);
 
                 });
             }
@@ -633,38 +609,38 @@
                  Each data type creates a different dictionary used for filtering.
                  */
                 let conditions = Object.keys(inputIDs).map(function (key, index) {
-                    let elem = inputIDs[key];
+                        let elem = inputIDs[key];
 
-                    // If the filter was created using the predefined option for string columns
-                    if (elem.type === "string") {
-                        let inputs = elem["inputs"];
-                        let optionsSelection = document.getElementById(inputs[1]);
-                        let option = optionsSelection.options[optionsSelection.selectedIndex].value;
-                        let condition = document.getElementById(inputs[0]).value;
-                        return {column: elem.column, condition: condition, option: option, type: "string"}
-                    }
+                        // If the filter was created using the predefined option for string columns
+                        if (elem.type === "string") {
+                            let inputs = elem["inputs"];
+                            let optionsSelection = document.getElementById(inputs[1]);
+                            let option = optionsSelection.options[optionsSelection.selectedIndex].value;
+                            let condition = document.getElementById(inputs[0]).value;
+                            return {column: elem.column, condition: condition, option: option, type: "string"}
+                        }
 
-                    // If the filter was created using the predefined option for numerical values
-                    if (elem.type === "numerical") {
-                        let inputs = elem["inputs"];
+                        // If the filter was created using the predefined option for numerical values
+                        if (elem.type === "numerical") {
+                            let inputs = elem["inputs"];
 
-                        let lowerBound = document.getElementById(inputs[0]).value;
-                        let lowerBoundSelection = document.getElementById(inputs[2]);
-                        let lowerBoundType = lowerBoundSelection.options[lowerBoundSelection.selectedIndex].value;
+                            let lowerBound = document.getElementById(inputs[0]).value;
+                            let lowerBoundSelection = document.getElementById(inputs[2]);
+                            let lowerBoundType = lowerBoundSelection.options[lowerBoundSelection.selectedIndex].value;
 
-                        let upperBound = document.getElementById(inputs[1]).value;
-                        let upperBoundSelection = document.getElementById(inputs[3]);
-                        let upperBoundType = upperBoundSelection.options[upperBoundSelection.selectedIndex].value;
+                            let upperBound = document.getElementById(inputs[1]).value;
+                            let upperBoundSelection = document.getElementById(inputs[3]);
+                            let upperBoundType = upperBoundSelection.options[upperBoundSelection.selectedIndex].value;
 
-                        return {
-                            column: elem.column,
-                            lowerBoundType: lowerBoundType,
-                            upperBoundType: upperBoundType,
-                            lowerBound: lowerBound,
-                            upperBound: upperBound,
-                            type: "numerical"
-                        };
-                    }
+                            return {
+                                column: elem.column,
+                                lowerBoundType: lowerBoundType,
+                                upperBoundType: upperBoundType,
+                                lowerBound: lowerBound,
+                                upperBound: upperBound,
+                                type: "numerical"
+                            };
+                        }
 
                         if (elem.type === "range") {
                             let inputs = elem["inputs"];
