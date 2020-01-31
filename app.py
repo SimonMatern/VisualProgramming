@@ -104,5 +104,14 @@ def sqlGetRange():
     df = graph[id].df
     return jsonify(df.select(column).rdd.min()[0],df.select(column).rdd.max()[0])
 
+@app.route('/sqlGetDateRange', methods=['POST'])
+def sqlGetDateRange():
+    id = request.form['id']
+    column = request.form['column']
+    df = graph[id].df.select(column)
+    df = df.withColumn(column, df[column].cast(DateType()))
+    return jsonify(df.select(column).rdd.min()[0],df.select(column).rdd.max()[0])
+
+
 if __name__ == '__main__':
     app.run()

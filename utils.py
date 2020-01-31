@@ -4,6 +4,8 @@ from pyspark.sql.functions import col, lit
 from os.path import expanduser, join, abspath
 from functools import reduce
 from operator import and_, or_
+from pyspark.sql.types import DateType
+
 
 import os
 import uuid
@@ -133,3 +135,5 @@ def createCondition(condition):
         selection = map(str,selection)
         label = column + " IN " + ", ".join(selection)
         return filter_condition, label
+
+    return lit(False), ""

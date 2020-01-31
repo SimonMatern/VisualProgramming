@@ -16,6 +16,8 @@
     <script src="https://cdn.rawgit.com/cpettitt/dagre/v0.7.4/dist/dagre.min.js"></script>
     <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.default.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-datepicker.standalone.min.css') }}">
+    <script src="{{ url_for('static', filename='js/bootstrap-datepicker.min.js') }}"></script>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.js"></script>
@@ -27,11 +29,11 @@
     #cy {
         height: 66%;
         position: absolute;
-        top: 10px;
-        left: 205px;
-        right: 5px;
+        top: 0px;
+        left: 200px;
+        right: 0px;
         text-color: '#ffffff';
-        background: #ccffcc;
+        background: rgb(177, 255, 243);
         border: 3px solid #ffffff;
 
     }
@@ -41,7 +43,6 @@
         left: 205px;
         right: 5px;
         top: 68%;
-        border: 3px solid #73AD21;
     }
 
     div.absolute {
@@ -50,7 +51,6 @@
         right: 0;
         width: 200px;
         height: 100px;
-        border: 3px solid #73AD21;
     }
 </style>
 
@@ -65,7 +65,7 @@
 
 
 <div class="sidenav">
-    <button class="dropdown-btn">Datenquellen
+    <button class="dropdown-btn">Hive Tables
         <i class="fa fa-caret-down"></i>
     </button>
     <div class="dropdown-container">
@@ -89,7 +89,7 @@
 
 <div class="main">
     <div id="cy"></div>
-    <div id="form" class="form"> Select</div>
+    <div id="form" class="form"></div>
 </div>
 
 
@@ -98,8 +98,6 @@
     var nodes = {{ nodes| tojson }};
     var edges = {{ edges| tojson }};
 
-    console.log(nodes);
-    console.log(edges);
 
     var count = 1;
 
@@ -153,7 +151,6 @@
     layout.run();
 
 
-
     /**
      * ############################################### Utility functions#############################################*/
     function getSelectize(id) {
@@ -192,6 +189,24 @@
             animate: true
         });
         layout.run();
+    }
+
+    function timestamp(str) {
+        return new Date(str).getTime();
+    }
+
+    function formatDate(date) {
+        let d = new Date(date),
+            month = '' + (d.getMonth() + 1),
+            day = '' + d.getDate(),
+            year = d.getFullYear();
+
+        if (month.length < 2)
+            month = '0' + month;
+        if (day.length < 2)
+            day = '0' + day;
+
+        return [year, month, day].join('-');
     }
 
     /** ############################################### END Utility functions########################################*/
@@ -240,15 +255,18 @@
             // Selection box with description text for selecting columns
             var select = document.createElement("div");
             select.id = "selectize";
-            var text = document.createTextNode("Wähle die Spalten für dir Projektion aus:")
-            document.getElementById("form").appendChild(text);
+            let text1 = document.createElement("H2");
+            text1.appendChild(document.createTextNode("Select columns for projection:"));
+            document.getElementById("form").appendChild(text1);
             document.getElementById("form").appendChild(select);
 
             // Selection box with description text for renaming columns
             var rename = document.createElement("div");
             rename.id = "rename";
-            text = document.createTextNode("(Optional) Umbennenung der Spalten. Die Anzahl der Elemente muss mit der oberen Auswahl übereinstimmen.)")
-            document.getElementById("form").appendChild(text);
+            let text2 = document.createElement("H2");
+            text2.appendChild(document.createTextNode("(Optional) Rename selected columns:"));
+
+            document.getElementById("form").appendChild(text2);
             document.getElementById("form").appendChild(rename);
             //new BstrapModal("Custom Titel", "BLABLA").Show();
 
@@ -345,7 +363,7 @@
             var filters = document.createElement("div");
             filters.id = "filtersSelection";
 
-            filters.innerHTML = `<label> Select column to be filtered: </label>
+            filters.innerHTML = `<h1> Select columns to be filtered: </h1>
                                   <div class="input-group mb-3">
                                       <select class="custom-select" id='filter-columns'></select>
                                     <div class="btn-group" role="group">
@@ -353,6 +371,7 @@
                                           <option selected>Predefined Filter</option>
                                           <option >Selectize</option>
                                           <option>Range Slider</option>
+                                          <option>Date Slider</option>
                                       </select>
                                      <button id='addFilter' class="btn btn btn-primary" type="button">ADD</button>
                                     </div>
@@ -516,11 +535,10 @@
 
 
                 }
-
                 if (filterType === "Range Slider") {
                     let dataType = response[column];
 
-                    if (!["int", "bigint", "double"].includes(dataType)) {
+                    if (!["int", "bigint", "double", "float"].includes(dataType)) {
                         return;
                     }
 
@@ -595,7 +613,103 @@
                     });
 
                 }
+                if (filterType === "Date Slider") {
+                    let dataType = response[column];
 
+                    if (!["string", "date"].includes(dataType)) {
+                        return;
+                    }
+
+
+                    $.post("sqlGetDateRange", {
+                        id: id, column: column
+                    }, function (response, status) {
+
+                        let min = timestamp(response[0]);
+                        let max = timestamp(response[1]);
+                        // Ids for dynamically added UI-Elements
+                        let conditionID = filterID + "-condition";
+                        let removeID = filterID + "-remove";
+                        let sliderID = filterID + "-slider";
+                        let lowerLimitID = conditionID + "-lower";
+                        let upperLimitID = conditionID + "-upper";
+
+                        /**
+                         *
+                         */
+                        div.innerHTML = `<label> ${column} </label>
+                                  <div style="padding-bottom:5px;padding-left:5px;padding-right:5px;"><div id='${sliderID}'></div></div>
+                                  <div class="input-group">
+                                    <div class="btn-group" role="group">
+                                     <span class="input-group-text">Lower Bound:</span>
+                                        <input type='text' class="form-control" id='${lowerLimitID}' />
+                                        <span class="input-group-text">Upper Bound:</span>
+                                        <input type='text' class="form-control" id='${upperLimitID}' />
+                                    </div>
+                                     <button id='${removeID}' class="btn btn-danger" type="button">Remove</button>
+                                    </div>
+                                    <hr>`;
+
+                        document.getElementById("filterUI").appendChild(div);
+                        document.getElementById(removeID).addEventListener("click", function () {
+                            removeFilter(filterID, inputIDs);
+                        });
+                        $(function () {
+                            $('#' + lowerLimitID).datepicker({
+                                format: 'yyyy-mm-dd',
+                                startDate: formatDate(min),
+                                endDate: formatDate(max)
+                            })
+                                .on("changeDate", function (e) {
+                                    slider.noUiSlider.set([timestamp(e.date), null]);
+                                });
+                        });
+                        $(function () {
+                            $('#' + upperLimitID).datepicker({
+                                format: 'yyyy-mm-dd',
+                                startDate: formatDate(min),
+                                endDate: formatDate(max)
+                            })
+                                .on("changeDate", function (e) {
+                                    slider.noUiSlider.set([null, timestamp(e.date)]);
+                                });
+                        });
+
+
+                        var slider = document.getElementById(sliderID);
+
+                        noUiSlider.create(slider, {
+                            start: [min + 0.2 * (max - min), min + 0.8 * (max - min)],
+                            connect: true,
+                            range: {
+                                'min': min,
+                                'max': max
+                            }
+                        });
+
+                        let inputLowerBound = document.getElementById(lowerLimitID);
+                        let inputUpperBound = document.getElementById(upperLimitID);
+
+                        //if the slider is updated change the inputs
+                        slider.noUiSlider.on('update', function (values, handle) {
+                            let timestamp = parseInt(values[handle]);
+                            let date = formatDate(timestamp);
+                            if (handle) {
+                                inputUpperBound.value = date;
+                            } else {
+                                inputLowerBound.value = date;
+                            }
+                        });
+
+
+                        inputIDs[filterID] = {
+                            column: column,
+                            type: "range",
+                            inputs: [lowerLimitID, upperLimitID]
+                        };
+                    });
+
+                }
 
             }
 
