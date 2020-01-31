@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask import  render_template
+import flask
 import json
 # -------- Spark imports  --------
 import pyspark
@@ -112,6 +113,12 @@ def sqlGetDateRange():
     df = df.withColumn(column, df[column].cast(DateType()))
     return jsonify(df.select(column).rdd.min()[0],df.select(column).rdd.max()[0])
 
+@app.route('/showTable', methods=['POST'])
+def showTable():
+
+    df = spark.sql("select * from default.100k_sp")
+    df_pd = df.select(['vin', 'werk', 'auslieferungsland', 'lenkung']).limit(10).toPandas()
+    return df_pd.to_html()
 
 if __name__ == '__main__':
     app.run()

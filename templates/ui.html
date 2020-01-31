@@ -45,6 +45,13 @@
         top: 68%;
     }
 
+    div.showDF {
+        position: absolute;
+        left: 205px;
+        right: 5px;
+        top: 68%;
+    }
+
     div.absolute {
         position: absolute;
         top: 80px;
@@ -82,14 +89,15 @@
         <a href="#" onclick="sqlFilter()">Filter</a>
         <a href="#">Join</a>
     </div>
-    <a href="#sql">Data-Analysis</a>
-    <a href="#contact">Search</a>
+    <a href="#analysis">Data-Analysis</a>
+    <a href="#table" onclick="showTable()">Show Table</a>
 </div>
 
 
 <div class="main">
     <div id="cy"></div>
     <div id="form" class="form"></div>
+    <div id='showDF'></div>
 </div>
 
 
@@ -232,6 +240,17 @@
     }
 
     // ############################################# SQL-Functions ############################################
+    function showTable() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+
+        let id = selected[0].data.id;
+        $.post("showTable", {id: id}, function (response, status) {
+            console.log("response:" + response);
+            columns = response;
+            document.getElementById("form").innerHTML = response;
+        });
+    }
 
     /**
      *  This simulates projection. SQL-function: SELECT ... FROM table
