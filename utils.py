@@ -5,6 +5,7 @@ from os.path import expanduser, join, abspath
 from functools import reduce
 from operator import and_, or_
 from pyspark.sql.types import DateType
+from xml.etree import ElementTree as et
 
 
 import os
@@ -86,6 +87,7 @@ class Graph:
 def createFilter(conditionParams):
     conditions = [createCondition(condition) for condition in conditionParams]
     conditions, labels = zip(*conditions)
+    print(labels)
     return reduce(or_, conditions), '\n'.join(labels)
 
 
@@ -136,4 +138,7 @@ def createCondition(condition):
         label = column + " IN " + ", ".join(selection)
         return filter_condition, label
 
-    return lit(False), ""
+    if condition["type"]=="rangeDate":
+        filter_condition = (col(condition["column"]) >= condition["lowerBound"])  &  (col(condition["column"]) <= condition["upperBound"])
+        label = condition["column"] + " >= " + condition["lowerBound"] + " & " + condition["column"] + " <= " + condition["upperBound"]
+        return filter_condition, label

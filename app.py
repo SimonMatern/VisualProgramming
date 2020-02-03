@@ -111,14 +111,19 @@ def sqlGetDateRange():
     column = request.form['column']
     df = graph[id].df.select(column)
     df = df.withColumn(column, df[column].cast(DateType()))
-    return jsonify(df.select(column).rdd.min()[0],df.select(column).rdd.max()[0])
+    dates = df.select(column).where(col(column).isNotNull())
+    return jsonify(dates.rdd.min()[0],dates.rdd.max()[0])
 
 @app.route('/showTable', methods=['POST'])
 def showTable():
-
-    df = spark.sql("select * from default.100k_sp")
-    df_pd = df.select(['vin', 'werk', 'auslieferungsland', 'lenkung']).limit(10).toPandas()
-    return df_pd.to_html()
+    id = request.form['id']
+    df = graph[id].df
+    df_pd = df.limit(50).toPandas()
+    t = et.fromstring(df_pd.to_html())
+    t.set('id', 'table')
+    t.set("width", "100%")
+    et.tostring(t)
+    return et.tostring(t)
 
 if __name__ == '__main__':
     app.run()

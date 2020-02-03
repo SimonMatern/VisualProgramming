@@ -22,6 +22,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.3/nouislider.min.js"></script>
 
+    <link rel="stylesheet" href="//cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css">
+    <script src="//cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+
 
 </head>
 
@@ -246,9 +249,15 @@
 
         let id = selected[0].data.id;
         $.post("showTable", {id: id}, function (response, status) {
-            console.log("response:" + response);
             columns = response;
             document.getElementById("form").innerHTML = response;
+
+            $(document).ready(function () {
+                $('#table').DataTable({
+                      "scrollX": true,
+                      "scrollY": true,
+                });
+            });
         });
     }
 
@@ -723,7 +732,7 @@
 
                         inputIDs[filterID] = {
                             column: column,
-                            type: "range",
+                            type: "rangeDate",
                             inputs: [lowerLimitID, upperLimitID]
                         };
                     });
@@ -791,10 +800,24 @@
                             }
 
                         }
+                        if (elem.type === "rangeDate") {
+                            let inputs = elem["inputs"];
+
+                            let lowerBound = document.getElementById(inputs[0]).value;
+                            let upperBound = document.getElementById(inputs[1]).value;
+
+                            return {
+                                column: elem.column,
+                                lowerBound: lowerBound,
+                                upperBound: upperBound,
+                                type: "rangeDate"
+                            }
+
+                        }
 
                         if (elem.type === "selectize") {
                             let selectedValues = getSelectize("#" + elem['inputs'][0]);
-                            console.log(selectedValues)
+                            console.log(selectedValues);
                             return {
                                 column: elem.column,
                                 list: selectedValues,
