@@ -1,6 +1,11 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
 from pyspark.sql.functions import col, lit
+from pyspark import SparkContext
+from pyspark.streaming import StreamingContext
+from pyspark.streaming.kafka import KafkaUtils
+
+
 from os.path import expanduser, join, abspath
 from functools import reduce
 from operator import and_, or_
@@ -17,15 +22,20 @@ def get_spark_Session():
     os.environ["HADOOP_CONF_DIR"] = "/usr/local/hadoop/etc/hadoop/"
     os.environ["HADOOP_OPTS"] = "-Djava.library.path=/usr/local/hadoop//lib"
     os.environ["LD_LIBRARY_PATH"] = "/usr/local/hadoop/lib/native/"
+    os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 pyspark-shell'
 
     print(os.environ)
     warehouse_location = abspath('/user/hive/warehouse')
     # sc = SparkContext(master = "yarn-client")
 
     #TODO: Change to Yarn-Client
-    sconf = SparkConf().setAll([('spark.master', 'spark://master:7077'), ('spark.deploy-mode', 'client'), ('spark.executor.memory', '4g'),
-                                ('spark.app.name', 'Flask-Spark'), ('spark.executor.cores', '4'),
-                                ('spark.driver.memory', '4g'), ('spark.executor.instances', 10),
+    sconf = SparkConf().setAll([('spark.master', 'spark://master:7077'),
+                                ('spark.deploy-mode', 'client'),
+                                ('spark.executor.memory', '4g'),
+                                ('spark.app.name', 'Flask-Spark'),
+                                ('spark.executor.cores', '4'),
+                                ('spark.driver.memory', '4g'),
+                                ('spark.executor.instances', 10),
                                 ('spark.sql.warehouse.dir', warehouse_location)])
     spark = SparkSession \
         .builder \
@@ -44,6 +54,8 @@ class Node:
         self.label = label
         self.inputs = inputs
         self.df = df
+        self.type= "static"
+
 
     def get_Cyto_node(self):
         return {"id": self.id, "label": self.label}
@@ -56,9 +68,18 @@ class Node:
 
 class Source(Node):
     def __init__(self, label):
-        super().__init__(label="Datenquelle: " + str(label))
+        super().__init__(label="Hive: " + str(label))
         self.df = spark.sql("select * from " + str(label))
 
+class StreamingSource(Node):
+    def __init__(self, id):
+        super().__init__(label="Kafka: " + str(id))
+        ssc = StreamingContext(spark.sparkContext, 5)
+        stream = KafkaUtils.createDirectStream(ssc, [id], {'bootstrap.servers': 'cluster0309:9094',
+                                                                    'auto.offset.reset': 'largest',
+                                                                    'group.id': 'spark-group'})
+        self.type= "stream"
+        self.stream = stream
 
 class Graph:
     def __init__(self):

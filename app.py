@@ -10,7 +10,9 @@ from pyspark import SparkContext
 from pyspark.sql import SparkSession
 from utils import *
 from pyspark.sql import HiveContext
-# -------- Spark imports  --------
+# --------END Spark imports  --------
+
+from pykafka import KafkaClient
 
 #os.environ["HADOOP_CONF_DIR"] = "/usr/local/hadoop/etc/hadoop"
 
@@ -19,6 +21,11 @@ print("Spark-Session Created!")
 data_sources = spark.sql("show tables in default").toPandas()
 data_sources = data_sources["tableName"].tolist()
 print(data_sources)
+
+HOSTS = "cluster0309:9094"
+client = KafkaClient(HOSTS)
+topics = [topic.decode("utf-8") for topic in list(client.topics.keys())]
+
 
 
 app = Flask(__name__)
@@ -30,12 +37,19 @@ graph = Graph()
 @app.route('/')
 def hello_world():
     global data_sources
-    return render_template("ui.html", data=data_sources, nodes=graph.get_nodes(), edges=graph.get_edges())
+    return render_template("ui.html", tables=data_sources, topics=topics, nodes=graph.get_nodes(), edges=graph.get_edges())
 
 @app.route('/addDataSource', methods=['POST'])
 def addDataSource():
     id = request.form['id']
     node = Source(id)
+    graph.add_node(node)
+    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
+
+@app.route('/addStreamingDataSource', methods=['POST'])
+def addStreamingDataSource():
+    id = request.form['id']
+    node = StreamingSource(id)
     graph.add_node(node)
     return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
 

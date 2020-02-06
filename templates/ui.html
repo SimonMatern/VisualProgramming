@@ -25,6 +25,9 @@
     <link rel="stylesheet" href="//cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css">
     <script src="//cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
 
+    <!-- Font Awesome JS -->
+    <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/solid.js" integrity="sha384-tzzSw1/Vo+0N5UhStP3bvwWPq+uvzCMfrN1fEFe+xBmv1C/AtVX5K0uZtmcHitFZ" crossorigin="anonymous"></script>
+    <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/fontawesome.js" integrity="sha384-6OIrr52G08NpOFSZdxxz1xdNSndlD4vdcf/q2myIUVO0VsqaGHJsB0RaBE01VTOY" crossorigin="anonymous"></script>
 
 </head>
 
@@ -79,7 +82,7 @@
         <i class="fa fa-caret-down"></i>
     </button>
     <div class="dropdown-container">
-        {% for d in data %}
+        {% for d in tables %}
             <a href="#" onclick="addDataSource('{{ d }}')">{{ d }}</a>
         {% endfor %}
 
@@ -91,6 +94,15 @@
         <a href="#" onclick="sqlSelect()">Select </a>
         <a href="#" onclick="sqlFilter()">Filter</a>
         <a href="#">Join</a>
+    </div>
+    <button class="dropdown-btn">Kafka Topics
+        <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-container">
+        {% for t in topics %}
+            <a href="#" onclick="addStreamingDataSource('{{ t }}')">{{ t }}</a>
+        {% endfor %}
+
     </div>
     <a href="#analysis">Data-Analysis</a>
     <a href="#table" onclick="showTable()">Show Table</a>
@@ -238,6 +250,18 @@
      */
     function addDataSource(id) {
         $.post("addDataSource", {id: id}, function (response, status) {
+            visualizeResponse(response)
+        });
+    }
+
+    /**
+     * This function is triggered by a click on a streaming data source.
+     * Given the id of the data source it generates a source for all following streaming
+     * operations.
+     * @param id The name of Kafka topic
+     */
+    function addStreamingDataSource(id) {
+        $.post("addStreamingDataSource", {id: id}, function (response, status) {
             visualizeResponse(response)
         });
     }
