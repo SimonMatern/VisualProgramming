@@ -1,5 +1,5 @@
-from flask import Flask, request, jsonify
-from flask import  render_template
+from flask import Flask, request, jsonify, render_template
+
 import flask
 import json
 # -------- Spark imports  --------
@@ -11,6 +11,15 @@ from pyspark.sql import SparkSession
 from utils import *
 from pyspark.sql import HiveContext
 # --------END Spark imports  --------
+
+# -------- Bookeh imports  --------
+from bokeh.plotting import figure
+from bokeh.embed import components
+from bokeh.models.sources import AjaxDataSource
+# --------END Bokeh imports  --------
+
+from bokeh.models.sources import AjaxDataSource
+
 
 from pykafka import KafkaClient
 
@@ -138,6 +147,27 @@ def showTable():
     t.set("width", "100%")
     et.tostring(t)
     return et.tostring(t)
+
+
+@app.route('/dashboard/')
+def show_dashboard():
+    plots = []
+    plots.append(make_plot())
+    plots.append(make_plot())
+    plots.append(make_plot())
+
+    return render_template('plots.html', plots=plots)
+
+def make_plot():
+    plot = figure(plot_height=300, sizing_mode='scale_width')
+
+    x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    y = [2**v for v in x]
+
+    plot.line(x, y, line_width=4)
+
+    script, div = components(plot)
+    return script, div
 
 if __name__ == '__main__':
     app.run()

@@ -163,3 +163,35 @@ def createCondition(condition):
         filter_condition = (col(condition["column"]) >= condition["lowerBound"])  &  (col(condition["column"]) <= condition["upperBound"])
         label = condition["column"] + " >= " + condition["lowerBound"] + " & " + condition["column"] + " <= " + condition["upperBound"]
         return filter_condition, label
+
+
+def filterDict(dictObj, filterCallback):
+    """
+    This funciton filters a dicitonary based on a generic boolean filter.
+    :param dictObj: A dictionary
+    :param filterCallback: a boolean callback that filter the dictionary. Takes key and value as parameters.
+    :return:
+    """
+    newDict = dict()
+    # Iterate over all the items in dictionary
+    for (key, value) in dictObj.items():
+        # Check if item satisfies the given condition then add to new dict
+        if filterCallback(key, value):
+            newDict[key] = value
+    return newDict
+
+def isNumerical(key,value):
+    return type(value) in [float, int]
+
+def reduceSum(x,y):
+    """
+    Sum two elements in the Stream.
+    :param x: tuple or dictionary
+    :param y: tuple or dictionary
+    :return:
+    """
+    if(type(x)==dict and type(y)==dict):
+        x = filterDict(x, isNumerical)
+        y = filterDict(y, isNumerical)
+
+        return{ k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y) }
