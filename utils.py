@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
 from pyspark.sql.functions import col, lit
+from pyspark.sql.functions import mean as _mean, stddev as _stddev, col
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
@@ -43,9 +44,10 @@ def get_spark_Session():
         .enableHiveSupport() \
         .getOrCreate()
 
-    return spark
+    ssc = StreamingContext(spark.sparkContext, 1)
+    return spark, ssc
 
-spark = get_spark_Session()
+spark,ssc = get_spark_Session()
 
 
 class Node:
@@ -74,12 +76,20 @@ class Source(Node):
 class StreamingSource(Node):
     def __init__(self, id):
         super().__init__(label="Kafka: " + str(id))
-        ssc = StreamingContext(spark.sparkContext, 5)
+
+        self.ssc = ssc
         stream = KafkaUtils.createDirectStream(ssc, [id], {'bootstrap.servers': 'cluster0309:9094',
                                                                     'auto.offset.reset': 'largest',
                                                                     'group.id': 'spark-group'})
         self.type= "stream"
         self.stream = stream
+
+class StreamingNode(Node):
+    def __init__(self, label, stream=None, inputs=None):
+        super().__init__(label=label, inputs=inputs)
+        self.stream = stream
+
+
 
 class Graph:
     def __init__(self):
@@ -163,25 +173,6 @@ def createCondition(condition):
         filter_condition = (col(condition["column"]) >= condition["lowerBound"])  &  (col(condition["column"]) <= condition["upperBound"])
         label = condition["column"] + " >= " + condition["lowerBound"] + " & " + condition["column"] + " <= " + condition["upperBound"]
         return filter_condition, label
-
-
-def filterDict(dictObj, filterCallback):
-    """
-    This funciton filters a dicitonary based on a generic boolean filter.
-    :param dictObj: A dictionary
-    :param filterCallback: a boolean callback that filter the dictionary. Takes key and value as parameters.
-    :return:
-    """
-    newDict = dict()
-    # Iterate over all the items in dictionary
-    for (key, value) in dictObj.items():
-        # Check if item satisfies the given condition then add to new dict
-        if filterCallback(key, value):
-            newDict[key] = value
-    return newDict
-
-def isNumerical(key,value):
-    return type(value) in [float, int]
 
 def reduceSum(x,y):
     """

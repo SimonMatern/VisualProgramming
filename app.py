@@ -7,9 +7,12 @@ import pyspark
 import os
 from pyspark import SparkConf
 from pyspark import SparkContext
+from pyspark.sql import Row
 from pyspark.sql import SparkSession
 from utils import *
 from pyspark.sql import HiveContext
+from pyspark.sql.functions import mean as _mean, stddev as _stddev, col
+
 # --------END Spark imports  --------
 
 # -------- Bookeh imports  --------
@@ -25,7 +28,7 @@ from pykafka import KafkaClient
 
 #os.environ["HADOOP_CONF_DIR"] = "/usr/local/hadoop/etc/hadoop"
 
-spark = get_spark_Session()
+spark, ssc = get_spark_Session()
 print("Spark-Session Created!")
 data_sources = spark.sql("show tables in default").toPandas()
 data_sources = data_sources["tableName"].tolist()
@@ -149,25 +152,88 @@ def showTable():
     return et.tostring(t)
 
 
-@app.route('/dashboard/')
-def show_dashboard():
-    plots = []
-    plots.append(make_plot())
-    plots.append(make_plot())
-    plots.append(make_plot())
 
-    return render_template('plots.html', plots=plots)
+def filterDict(dictObj, filterCallback):
+    """
+    This funciton filters a dicitonary based on a generic boolean filter.
+    :param dictObj: A dictionary
+    :param filterCallback: a boolean callback that filter the dictionary. Takes key and value as parameters.
+    :return:
+    """
+    newDict = dict()
+    # Iterate over all the items in dictionary
+    for (key, value) in dictObj.items():
+        # Check if item satisfies the given condition then add to new dict
+        if filterCallback(key, value):
+            newDict[key] = value
+    return newDict
 
-def make_plot():
+def isNumerical(key,value):
+    return type(value) in [float, int]
+
+
+
+def processRow(row):
+    print("Bla")
+
+def AverageAndStd(time, rdd):
+    if rdd.isEmpty():
+        return
+    print(time)
+
+@app.route('/vizualizeStream', methods=['POST'])
+def vizualizeStream():
+    id = request.form['id']
+    source = graph[id]
+    stream = source.stream
+
+
+
+    stream.map(lambda x: filterDict(eval(x[1]), isNumerical)).foreachRDD(processRow)
+    ssc = source.ssc
+    node = StreamingNode(label="Visualize",stream=stream,inputs=[source])
+    graph.add_node(node)
+    ssc.start()
+    ssc.awaitTermination()
+
+    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
+
+
+def make_line_plot(dictionary, id):
+    source = AjaxDataSource(data_url=request.url_root + 'data/' + id +"/",
+                            polling_interval=2000, mode='replace')
+    source.data = dictionary
     plot = figure(plot_height=300, sizing_mode='scale_width')
 
-    x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    y = [2**v for v in x]
-
-    plot.line(x, y, line_width=4)
+    for key in dictionary.keys():
+        plot.line('x', key, source=source, line_width=4)
 
     script, div = components(plot)
     return script, div
+
+
+plots = []
+@app.route('/dashboard/')
+def show_dashboard():
+    global plots
+    if not plots:
+        plots.append(make_line_plot(dict(x=[], y=[]), id="bla"))
+    return render_template('plots.html', plots=plots)
+
+
+streamingData = dict()
+@app.route('/data/<id>/', methods=['POST'])
+def data(id):
+    global streamingData
+
+    return jsonify(x=[x], y=[y])
+
+
+
+    global streamingData
+    streamingData[id] = df
+    print(df)
+
 
 if __name__ == '__main__':
     app.run()
