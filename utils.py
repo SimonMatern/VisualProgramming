@@ -1,19 +1,21 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
 from pyspark.sql.functions import col, lit
+from pyspark.sql.functions import mean as _mean, stddev as _stddev, col
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
+from pyspark.sql import Row
 
 
-from os.path import expanduser, join, abspath
 from functools import reduce
 from operator import and_, or_
 from pyspark.sql.types import DateType
 from xml.etree import ElementTree as et
-
-
 import os
+from os.path import expanduser, join, abspath
+
+
 import uuid
 
 def get_spark_Session():
@@ -43,9 +45,12 @@ def get_spark_Session():
         .enableHiveSupport() \
         .getOrCreate()
 
-    return spark
+    spark.sparkContext.addFile("utils.py")
 
-spark = get_spark_Session()
+    ssc = StreamingContext(spark.sparkContext, 1)
+    return spark, ssc
+
+spark, ssc = get_spark_Session()
 
 
 class Node:
@@ -74,12 +79,20 @@ class Source(Node):
 class StreamingSource(Node):
     def __init__(self, id):
         super().__init__(label="Kafka: " + str(id))
-        ssc = StreamingContext(spark.sparkContext, 5)
+
+        self.ssc = ssc
         stream = KafkaUtils.createDirectStream(ssc, [id], {'bootstrap.servers': 'cluster0309:9094',
                                                                     'auto.offset.reset': 'largest',
                                                                     'group.id': 'spark-group'})
         self.type= "stream"
         self.stream = stream
+
+class StreamingNode(Node):
+    def __init__(self, label, stream=None, inputs=None):
+        super().__init__(label=label, inputs=inputs)
+        self.stream = stream
+
+
 
 class Graph:
     def __init__(self):
@@ -164,6 +177,19 @@ def createCondition(condition):
         label = condition["column"] + " >= " + condition["lowerBound"] + " & " + condition["column"] + " <= " + condition["upperBound"]
         return filter_condition, label
 
+def reduceSum(x,y):
+    """
+    Sum two elements in the Stream.
+    :param x: tuple or dictionary
+    :param y: tuple or dictionary
+    :return:
+    """
+    if(type(x)==dict and type(y)==dict):
+        x = filterDict(x, isNumerical)
+        y = filterDict(y, isNumerical)
+
+        return{ k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y) }
+
 
 def filterDict(dictObj, filterCallback):
     """
@@ -183,15 +209,19 @@ def filterDict(dictObj, filterCallback):
 def isNumerical(key,value):
     return type(value) in [float, int]
 
-def reduceSum(x,y):
-    """
-    Sum two elements in the Stream.
-    :param x: tuple or dictionary
-    :param y: tuple or dictionary
-    :return:
-    """
-    if(type(x)==dict and type(y)==dict):
-        x = filterDict(x, isNumerical)
-        y = filterDict(y, isNumerical)
 
-        return{ k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y) }
+def processRow(row):
+    print("")
+
+x = 0
+
+def AverageAndStd(time,rdd):
+    if rdd.isEmpty():
+        return
+    df = rdd.map(lambda x: Row(**x)).toDF()
+    columns = df.schema.names
+    conditions_mean = [_mean(col(column)).alias(column +"_mean") for column in columns]
+    conditions_std = [_stddev(col(column)).alias(column +"_stddev") for column in columns]
+
+    df = df.select(conditions_mean+conditions_std).toPandas()
+    print(time)

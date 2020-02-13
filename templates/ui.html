@@ -26,8 +26,12 @@
     <script src="//cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
 
     <!-- Font Awesome JS -->
-    <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/solid.js" integrity="sha384-tzzSw1/Vo+0N5UhStP3bvwWPq+uvzCMfrN1fEFe+xBmv1C/AtVX5K0uZtmcHitFZ" crossorigin="anonymous"></script>
-    <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/fontawesome.js" integrity="sha384-6OIrr52G08NpOFSZdxxz1xdNSndlD4vdcf/q2myIUVO0VsqaGHJsB0RaBE01VTOY" crossorigin="anonymous"></script>
+    <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/solid.js"
+            integrity="sha384-tzzSw1/Vo+0N5UhStP3bvwWPq+uvzCMfrN1fEFe+xBmv1C/AtVX5K0uZtmcHitFZ"
+            crossorigin="anonymous"></script>
+    <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/fontawesome.js"
+            integrity="sha384-6OIrr52G08NpOFSZdxxz1xdNSndlD4vdcf/q2myIUVO0VsqaGHJsB0RaBE01VTOY"
+            crossorigin="anonymous"></script>
 
 </head>
 
@@ -104,8 +108,13 @@
         {% endfor %}
 
     </div>
-    <a href="#analysis">Data-Analysis</a>
-    <a href="#table" onclick="showTable()">Show Table</a>
+    <button class="dropdown-btn">Vizualize
+        <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-container">
+        <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
+        <a href="#table" onclick="showTable()">Show Table</a>
+    </div>
 </div>
 
 
@@ -278,8 +287,8 @@
 
             $(document).ready(function () {
                 $('#table').DataTable({
-                      "scrollX": true,
-                      "scrollY": true,
+                    "scrollX": true,
+                    "scrollY": true,
                 });
             });
         });
@@ -879,6 +888,18 @@
         })
     }
 
+    /**
+     *
+     */
+    function vizualizeStream() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+
+        let id = selected[0].data.id;
+        $.post("vizualizeStream", {id: id}, function (response, status) {
+            visualizeResponse(response)
+        });
+    }
 
 </script>
 
