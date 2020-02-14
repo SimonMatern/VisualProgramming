@@ -1,24 +1,18 @@
 from flask import Flask, request, jsonify, render_template
+import os
 
-import flask
 import json
 # -------- Spark imports  --------
-import pyspark
-import os
-from pyspark import SparkConf
-from pyspark import SparkContext
 from pyspark.sql import Row
-from pyspark.sql import SparkSession
 from utils import *
-from pyspark.sql import HiveContext
-from pyspark.sql.functions import mean as _mean, stddev as _stddev, col
-
+from pyspark.sql.functions import col
+from pyspark.sql import SparkSession
+from pyspark import SparkConf
 # --------END Spark imports  --------
 
 # -------- Bookeh imports  --------
 from bokeh.plotting import figure
 from bokeh.embed import components
-from bokeh.models.sources import AjaxDataSource
 # --------END Bokeh imports  --------
 
 from bokeh.models.sources import AjaxDataSource
@@ -27,6 +21,9 @@ from bokeh.models.sources import AjaxDataSource
 from pykafka import KafkaClient
 
 #os.environ["HADOOP_CONF_DIR"] = "/usr/local/hadoop/etc/hadoop"
+app = Flask(__name__)
+
+
 
 spark, ssc = get_spark_Session()
 print("Spark-Session Created!")
@@ -40,7 +37,6 @@ topics = [topic.decode("utf-8") for topic in list(client.topics.keys())]
 
 
 
-app = Flask(__name__)
 
 data = ["data1", "data2", "data3", "data4"]
 
@@ -153,33 +149,8 @@ def showTable():
 
 
 
-def filterDict(dictObj, filterCallback):
-    """
-    This funciton filters a dicitonary based on a generic boolean filter.
-    :param dictObj: A dictionary
-    :param filterCallback: a boolean callback that filter the dictionary. Takes key and value as parameters.
-    :return:
-    """
-    newDict = dict()
-    # Iterate over all the items in dictionary
-    for (key, value) in dictObj.items():
-        # Check if item satisfies the given condition then add to new dict
-        if filterCallback(key, value):
-            newDict[key] = value
-    return newDict
-
-def isNumerical(key,value):
-    return type(value) in [float, int]
 
 
-
-def processRow(row):
-    print("Bla")
-
-def AverageAndStd(time, rdd):
-    if rdd.isEmpty():
-        return
-    print(time)
 
 @app.route('/vizualizeStream', methods=['POST'])
 def vizualizeStream():
@@ -188,8 +159,7 @@ def vizualizeStream():
     stream = source.stream
 
 
-
-    stream.map(lambda x: filterDict(eval(x[1]), isNumerical)).foreachRDD(processRow)
+    stream.map(lambda x: filterDict(eval(x[1]), isNumerical)).foreachRDD(AverageAndStd)
     ssc = source.ssc
     node = StreamingNode(label="Visualize",stream=stream,inputs=[source])
     graph.add_node(node)

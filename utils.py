@@ -5,16 +5,17 @@ from pyspark.sql.functions import mean as _mean, stddev as _stddev, col
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.streaming.kafka import KafkaUtils
+from pyspark.sql import Row
 
 
-from os.path import expanduser, join, abspath
 from functools import reduce
 from operator import and_, or_
 from pyspark.sql.types import DateType
 from xml.etree import ElementTree as et
-
-
 import os
+from os.path import expanduser, join, abspath
+
+
 import uuid
 
 def get_spark_Session():
@@ -44,10 +45,12 @@ def get_spark_Session():
         .enableHiveSupport() \
         .getOrCreate()
 
+    spark.sparkContext.addFile("utils.py")
+
     ssc = StreamingContext(spark.sparkContext, 1)
     return spark, ssc
 
-spark,ssc = get_spark_Session()
+spark, ssc = get_spark_Session()
 
 
 class Node:
@@ -186,3 +189,39 @@ def reduceSum(x,y):
         y = filterDict(y, isNumerical)
 
         return{ k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y) }
+
+
+def filterDict(dictObj, filterCallback):
+    """
+    This funciton filters a dicitonary based on a generic boolean filter.
+    :param dictObj: A dictionary
+    :param filterCallback: a boolean callback that filter the dictionary. Takes key and value as parameters.
+    :return:
+    """
+    newDict = dict()
+    # Iterate over all the items in dictionary
+    for (key, value) in dictObj.items():
+        # Check if item satisfies the given condition then add to new dict
+        if filterCallback(key, value):
+            newDict[key] = value
+    return newDict
+
+def isNumerical(key,value):
+    return type(value) in [float, int]
+
+
+def processRow(row):
+    print("")
+
+x = 0
+
+def AverageAndStd(time,rdd):
+    if rdd.isEmpty():
+        return
+    df = rdd.map(lambda x: Row(**x)).toDF()
+    columns = df.schema.names
+    conditions_mean = [_mean(col(column)).alias(column +"_mean") for column in columns]
+    conditions_std = [_stddev(col(column)).alias(column +"_stddev") for column in columns]
+
+    df = df.select(conditions_mean+conditions_std).toPandas()
+    print(time)
