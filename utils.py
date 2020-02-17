@@ -39,7 +39,7 @@ def get_spark_Session():
     # sc = SparkContext(master = "yarn-client")
 
     #TODO: Change to Yarn-Client
-    sconf = SparkConf().setAll([('spark.master', 'local[50]'),
+    sconf = SparkConf().setAll([('spark.master', 'local'),
                                 ('spark.deploy-mode', 'client'),
                                 ('spark.executor.memory', '4g'),
                                 ('spark.app.name', 'Flask-Spark'),
@@ -93,12 +93,14 @@ class StreamingSource(Node):
                                                                     'auto.offset.reset': 'largest',
                                                                     'group.id': 'spark-group'})
         self.type= "stream"
-        self.stream = stream
+        self.stream = stream.map(lambda x: filterDict(eval(x[1]), isNumerical))
 
 class StreamingNode(Node):
-    def __init__(self, label, stream=None, inputs=None):
+    def __init__(self, label, stream=None, inputs=None, ssc=None):
         super().__init__(label=label, inputs=inputs)
         self.stream = stream
+        self.ssc = ssc
+
 
 
 
@@ -218,10 +220,25 @@ def isNumerical(key,value):
     return type(value) in [float, int]
 
 
-def processRow(row):
-    print("")
+def countStream(x):
+    x["count"] = 1
+    return x
 
-x = 0
+
+def reduceSum(x, y):
+    if (type(x) == dict and type(y) == dict):
+        x = filterDict(x, isNumerical)
+        y = filterDict(y, isNumerical)
+
+        return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
+
+
+def count_to_mean(x):
+    for key in x:
+        x[key] = x[key] / x["count"]
+    del x["count"]
+    return x
+
 def AverageAndStd(time, rdd, streaming_dict, id):
     global x
     if rdd.isEmpty():

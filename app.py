@@ -160,8 +160,7 @@ def vizualizeStream():
     source = graph[id]
     stream = source.stream
 
-    stream.map(lambda x: filterDict(eval(x[1]), isNumerical))\
-        .foreachRDD(lambda time,rdd: AverageAndStd(time,rdd,streaming_data,id))
+    stream.foreachRDD(lambda time,rdd: AverageAndStd(time,rdd,streaming_data,id))
 
     node = StreamingNode(label="Visualize",stream=stream,inputs=[source])
     graph.add_node(node)
@@ -176,6 +175,26 @@ def vizualizeStream():
     #ssc.awaitTermination()
     return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
 
+@app.route('/windowedStreamResponse', methods=['POST'])
+def windowedStreamResponse():
+
+    # Get selected Node from Graph
+    id = request.form['id']
+    source = graph[id]
+    stream = source.stream
+    #
+    windowLength =  int(request.form['windowLength'])
+    windowInterval =  int(request.form['windowInterval'])
+    if request.form['aggregationFunction'] == "Sum":
+        windowed_stream = stream.window(windowLength, windowInterval)
+        windowed_stream = windowed_stream.reduce(reduceSum)
+    if request.form['aggregationFunction'] == "Mean":
+        windowed_stream = stream.map(countStream).window(windowLength, windowInterval).reduce(reduceSum).map(count_to_mean)
+    windowed_stream.pprint()
+    ssc.start()
+    node = StreamingNode(label="Window: \n"+str(windowLength) +"s / " + str(windowInterval) +" s",stream=stream,inputs=[source] , ssc=ssc)
+    graph.add_node(node)
+    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
 
 
 
@@ -193,6 +212,8 @@ def data(id):
     print(streaming_data)
 
     return jsonify(**df_to_dict(streaming_data[id]))
+
+
 
 
 if __name__ == '__main__':

@@ -106,13 +106,18 @@
         {% for t in topics %}
             <a href="#" onclick="addStreamingDataSource('{{ t }}')">{{ t }}</a>
         {% endfor %}
-
+    </div>
+    <button class="dropdown-btn">Streaming
+        <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-container">
+        <a href="#" onclick="windowedStream()">Window</a>
+        <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
     </div>
     <button class="dropdown-btn">Vizualize
         <i class="fa fa-caret-down"></i>
     </button>
     <div class="dropdown-container">
-        <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
         <a href="#table" onclick="showTable()">Show Table</a>
     </div>
 </div>
@@ -902,7 +907,62 @@
     }
 
 </script>
+<script>
+    // ############################################# Streaming-Functions ############################################
+    function windowedStream() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
 
+        let id = selected[0].data.id;
+
+        const form = document.getElementById("form");
+        while (form.firstChild) {
+            form.removeChild(form.firstChild);
+        }
+
+        let windowUIDiv = document.createElement("div");
+        windowUIDiv.id = "windowStreamUI";
+        windowUIDiv.innerHTML = `<label>Define Window Function</label>
+                                  <div class="input-group mb-3">
+                                      <div class="input-group-prepend">
+                                        <span class="input-group-text">Window Length</span>
+                                      </div>
+                                      <input id="windowLength" type="number" class="form-control" >
+                                      <div class="input-group-prepend">
+                                        <span class="input-group-text">Sliding Interval</span>
+                                      </div>
+                                      <input id="windowInterval" type="number" class="form-control" >
+                                      <select class="form-control" id="aggregationFunction">
+                                        <option>Sum</option>
+                                        <option>Mean</option>
+                                        <option>Min</option>
+                                        <option>Max</option>
+                                      </select>
+                                      <button id="windowStreamSubmit" type="submit" class="btn btn-primary">Submit</button>
+                                  </div>`;
+        form.appendChild(windowUIDiv);
+
+        function windowedStreamResponse() {
+            let windowLength = document.getElementById("windowLength").value;
+            let windowInterval = document.getElementById("windowInterval").value;
+
+            let aggregationFunctionUI = document.getElementById("aggregationFunction");
+            let aggregationFunction = aggregationFunctionUI.options[aggregationFunctionUI.selectedIndex].value;
+
+            $.post("windowedStreamResponse", {id: id, windowLength: windowLength, windowInterval: windowInterval, aggregationFunction:aggregationFunction},
+                function (response, status) {
+                    visualizeResponse(response)
+                });
+
+        }
+
+        let button = document.getElementById("windowStreamSubmit");
+        button.addEventListener("click", windowedStreamResponse);
+
+    }
+
+
+</script>
 
 <script>
     /* Loop through all dropdown buttons to toggle between hiding and showing its dropdown content - This allows the user to have multiple dropdowns without any conflict */
