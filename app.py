@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template
 import os
 
 import json
+import time
 # -------- Spark imports  --------
 from pyspark.sql import Row
 from utils import *
@@ -15,7 +16,6 @@ from bokeh.plotting import figure
 from bokeh.embed import components
 # --------END Bokeh imports  --------
 
-from bokeh.models.sources import AjaxDataSource
 
 
 from pykafka import KafkaClient
@@ -51,13 +51,6 @@ def hello_world():
 def addDataSource():
     id = request.form['id']
     node = Source(id)
-    graph.add_node(node)
-    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
-
-@app.route('/addStreamingDataSource', methods=['POST'])
-def addStreamingDataSource():
-    id = request.form['id']
-    node = StreamingSource(id)
     graph.add_node(node)
     return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
 
@@ -148,61 +141,58 @@ def showTable():
     return et.tostring(t)
 
 
+######################## Streaming ###############################
+
+@app.route('/addStreamingDataSource', methods=['POST'])
+def addStreamingDataSource():
+    id = request.form['id']
+    node = StreamingSource(id,ssc)
+    graph.add_node(node)
+    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
 
 
 
 
+streaming_data = dict()
 @app.route('/vizualizeStream', methods=['POST'])
 def vizualizeStream():
     id = request.form['id']
     source = graph[id]
     stream = source.stream
 
+    stream.map(lambda x: filterDict(eval(x[1]), isNumerical))\
+        .foreachRDD(lambda time,rdd: AverageAndStd(time,rdd,streaming_data,id))
 
-    stream.map(lambda x: filterDict(eval(x[1]), isNumerical)).foreachRDD(AverageAndStd)
-    ssc = source.ssc
     node = StreamingNode(label="Visualize",stream=stream,inputs=[source])
     graph.add_node(node)
     ssc.start()
-    ssc.awaitTermination()
 
-    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
+    while not id in streaming_data:
+        time.sleep(1)
+
+    df = streaming_data[id]
+    plots.append(make_line_plot( df_to_dict(df), id))
+
+    #ssc.awaitTermination()
+    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
 
 
-def make_line_plot(dictionary, id):
-    source = AjaxDataSource(data_url=request.url_root + 'data/' + id +"/",
-                            polling_interval=2000, mode='replace')
-    source.data = dictionary
-    plot = figure(plot_height=300, sizing_mode='scale_width')
-
-    for key in dictionary.keys():
-        plot.line('x', key, source=source, line_width=4)
-
-    script, div = components(plot)
-    return script, div
 
 
 plots = []
 @app.route('/dashboard/')
 def show_dashboard():
     global plots
-    if not plots:
-        plots.append(make_line_plot(dict(x=[], y=[]), id="bla"))
     return render_template('plots.html', plots=plots)
 
 
-streamingData = dict()
+x=0
 @app.route('/data/<id>/', methods=['POST'])
 def data(id):
-    global streamingData
+    global streaming_data
+    print(streaming_data)
 
-    return jsonify(x=[x], y=[y])
-
-
-
-    global streamingData
-    streamingData[id] = df
-    print(df)
+    return jsonify(**df_to_dict(streaming_data[id]))
 
 
 if __name__ == '__main__':

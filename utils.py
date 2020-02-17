@@ -14,8 +14,16 @@ from pyspark.sql.types import DateType
 from xml.etree import ElementTree as et
 import os
 from os.path import expanduser, join, abspath
+from datetime import datetime
 
 
+from flask import Flask, request, jsonify, render_template
+
+# -------- Bookeh imports  --------
+from bokeh.plotting import figure
+from bokeh.embed import components
+from bokeh.models.sources import AjaxDataSource
+# --------END Bokeh imports  --------
 import uuid
 
 def get_spark_Session():
@@ -31,7 +39,7 @@ def get_spark_Session():
     # sc = SparkContext(master = "yarn-client")
 
     #TODO: Change to Yarn-Client
-    sconf = SparkConf().setAll([('spark.master', 'spark://master:7077'),
+    sconf = SparkConf().setAll([('spark.master', 'local[50]'),
                                 ('spark.deploy-mode', 'client'),
                                 ('spark.executor.memory', '4g'),
                                 ('spark.app.name', 'Flask-Spark'),
@@ -50,7 +58,7 @@ def get_spark_Session():
     ssc = StreamingContext(spark.sparkContext, 1)
     return spark, ssc
 
-spark, ssc = get_spark_Session()
+spark, _ = get_spark_Session()
 
 
 class Node:
@@ -77,7 +85,7 @@ class Source(Node):
         self.df = spark.sql("select * from " + str(label))
 
 class StreamingSource(Node):
-    def __init__(self, id):
+    def __init__(self, id , ssc):
         super().__init__(label="Kafka: " + str(id))
 
         self.ssc = ssc
@@ -214,8 +222,8 @@ def processRow(row):
     print("")
 
 x = 0
-
-def AverageAndStd(time,rdd):
+def AverageAndStd(time, rdd, streaming_dict, id):
+    global x
     if rdd.isEmpty():
         return
     df = rdd.map(lambda x: Row(**x)).toDF()
@@ -224,4 +232,31 @@ def AverageAndStd(time,rdd):
     conditions_std = [_stddev(col(column)).alias(column +"_stddev") for column in columns]
 
     df = df.select(conditions_mean+conditions_std).toPandas()
-    print(time)
+    df["time_stamp"]= time.timestamp() * 1000
+
+    if id in streaming_dict:
+        streaming_dict[id]= streaming_dict[id].append(df, ignore_index=True)
+    else:
+        streaming_dict[id]=df
+
+
+def make_line_plot(dictionary, id):
+    source = AjaxDataSource(data_url=request.url_root + 'data/' + id +"/",
+                            polling_interval=2000, mode='replace')
+    source.data = dictionary
+    plot = figure(plot_height=300, sizing_mode='scale_width',x_axis_type="datetime")
+
+    for key in dictionary.keys():
+        if key == "time_stamp": continue
+        plot.line('time_stamp', key, source=source, line_width=4)
+
+    script, div = components(plot)
+    return script, div
+
+
+def df_to_dict(df):
+    new_dict = dict()
+    for key in df:
+        new_dict[key] = df[key].to_list()
+
+    return new_dict
