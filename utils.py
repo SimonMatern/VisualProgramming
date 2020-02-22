@@ -32,14 +32,16 @@ def get_spark_Session():
     os.environ["HADOOP_CONF_DIR"] = "/usr/local/hadoop/etc/hadoop/"
     os.environ["HADOOP_OPTS"] = "-Djava.library.path=/usr/local/hadoop//lib"
     os.environ["LD_LIBRARY_PATH"] = "/usr/local/hadoop/lib/native/"
-    os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 pyspark-shell'
+
+    # Uncomment following line for Streaming
+    #os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 pyspark-shell'
 
     print(os.environ)
     warehouse_location = abspath('/user/hive/warehouse')
     # sc = SparkContext(master = "yarn-client")
 
     #TODO: Change to Yarn-Client
-    sconf = SparkConf().setAll([('spark.master', 'local[50]'),
+    sconf = SparkConf().setAll([('spark.master', 'spark://master:7077'),
                                 ('spark.deploy-mode', 'client'),
                                 ('spark.executor.memory', '4g'),
                                 ('spark.app.name', 'Flask-Spark'),
@@ -53,12 +55,10 @@ def get_spark_Session():
         .enableHiveSupport() \
         .getOrCreate()
 
-    spark.sparkContext.addFile("utils.py")
 
-    ssc = StreamingContext(spark.sparkContext, 1)
-    return spark, ssc
+    return spark
 
-spark, _ = get_spark_Session()
+spark = get_spark_Session()
 
 
 class Node:
@@ -89,16 +89,18 @@ class StreamingSource(Node):
         super().__init__(label="Kafka: " + str(id))
 
         self.ssc = ssc
-        stream = KafkaUtils.createDirectStream(ssc, [id], {'bootstrap.servers': 'cluster0309:9094',
+        stream = KafkaUtils.createDirectStream(ssc, [id], {'bootstrap.servers': 'cluster0101:9094',
                                                                     'auto.offset.reset': 'largest',
                                                                     'group.id': 'spark-group'})
         self.type= "stream"
-        self.stream = stream
+        self.stream = stream.map(lambda x: filterDict(eval(x[1]), isNumerical))
 
 class StreamingNode(Node):
-    def __init__(self, label, stream=None, inputs=None):
+    def __init__(self, label, stream=None, inputs=None, ssc=None):
         super().__init__(label=label, inputs=inputs)
         self.stream = stream
+        self.ssc = ssc
+
 
 
 
@@ -218,10 +220,25 @@ def isNumerical(key,value):
     return type(value) in [float, int]
 
 
-def processRow(row):
-    print("")
+def countStream(x):
+    x["count"] = 1
+    return x
 
-x = 0
+
+def reduceSum(x, y):
+    if (type(x) == dict and type(y) == dict):
+        x = filterDict(x, isNumerical)
+        y = filterDict(y, isNumerical)
+
+        return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
+
+
+def count_to_mean(x):
+    for key in x:
+        x[key] = x[key] / x["count"]
+    del x["count"]
+    return x
+
 def AverageAndStd(time, rdd, streaming_dict, id):
     global x
     if rdd.isEmpty():

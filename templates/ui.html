@@ -6,7 +6,6 @@
     <script src="{{ url_for('static', filename='js/cytoscape.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
     <script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" type="text/css">
     <link rel="stylesheet" href="{{ url_for('static', filename='navbar.css') }}">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
@@ -97,7 +96,7 @@
     <div class="dropdown-container">
         <a href="#" onclick="sqlSelect()">Select </a>
         <a href="#" onclick="sqlFilter()">Filter</a>
-        <a href="#">Join</a>
+        <a href="#" onclick="sqlJoin()">Join</a>
     </div>
     <button class="dropdown-btn">Kafka Topics
         <i class="fa fa-caret-down"></i>
@@ -106,14 +105,19 @@
         {% for t in topics %}
             <a href="#" onclick="addStreamingDataSource('{{ t }}')">{{ t }}</a>
         {% endfor %}
-
+    </div>
+    <button class="dropdown-btn">Streaming
+        <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-container">
+        <a href="#" onclick="windowedStream()">Window</a>
+        <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
     </div>
     <button class="dropdown-btn">Vizualize
         <i class="fa fa-caret-down"></i>
     </button>
     <div class="dropdown-container">
-        <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
-        <a href="#table" onclick="showTable()">Show Table</a>
+        <a href="#" onclick="showTable()">Show Table</a>
     </div>
 </div>
 
@@ -185,6 +189,12 @@
 
     /**
      * ############################################### Utility functions#############################################*/
+
+
+    /**
+     * This function returns the selected elements from a Selectize.js UI
+     * @param id Id of the Selectize.js Element
+     */
     function getSelectize(id) {
 
         let selectize = $(id)[0].selectize;
@@ -196,6 +206,17 @@
         });
         let selection = columns.map(x => x.label);
         return selection;
+    }
+
+    /**
+     * This function returns the selected value from a <select> element
+     * @param id Id of the Select-Element
+     */
+    function getSelect(id) {
+        let UI = document.getElementById(id);
+        let selectedValue = UI.options[UI.selectedIndex].value;
+        return selectedValue;
+
     }
 
     function removeElement(id) {
@@ -239,6 +260,24 @@
             day = '0' + day;
 
         return [year, month, day].join('-');
+    }
+
+    function trunc(string, n) {
+        return (string.length > n) ? string.substr(0, n - 1) + '...' : string;
+    }
+
+    /**
+     * Swap UI places of elements
+     * @param a Id of first element
+     * @param b Id of second element
+     */
+    function swap(a, b) {
+        a = $(a);
+        b = $(b);
+        var tmp = $('<span>').hide();
+        a.before(tmp);
+        b.before(a);
+        tmp.replaceWith(b);
     }
 
     /** ############################################### END Utility functions########################################*/
@@ -400,11 +439,13 @@
      * An UI is dynamically created for a filtering a selected Data Frame.
      */
     function sqlFilter() {
+
+        // Get selected Nodes
         let selected = cy.$(':selected').jsons();
         if (selected.length != 1) return;
-
         let id = selected[0].data.id;
 
+        //remove previous UI elements
         const form = document.getElementById("form");
         while (form.firstChild) {
             form.removeChild(form.firstChild);
@@ -891,6 +932,144 @@
     /**
      *
      */
+    function sqlJoin() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 2) return;
+
+        let table_name_1 = trunc(selected[0].data.label, 20);
+        let table_id_1 = selected[0].data.id;
+        let table_name_2 = trunc(selected[1].data.label, 20);
+        let table_id_2 = selected[1].data.id;
+
+        const form = document.getElementById("form");
+        while (form.firstChild) {
+            form.removeChild(form.firstChild);
+        }
+
+        $.post("sqlJoin", {id_1: table_id_1, id_2: table_id_2},
+            function (response, status) {
+                console.log(response);
+
+                let joinUI = document.createElement("div");
+
+                let swapped = false;
+
+                function swapTables() {
+                    swap('#TableLeft', '#TableRight');
+                    if (!swapped) {
+                        document.getElementById("LeftLabel").innerText = `Right Table: ${table_name_1}`;
+                        document.getElementById("RightLabel").innerText = `Left Table: ${table_name_2}`;
+                        swapped = true;
+                    }
+                    else{
+                        document.getElementById("LeftLabel").innerText = `Left Table: ${table_name_1}`;
+                        document.getElementById("RightLabel").innerText = `Right Table: ${table_name_2}`;
+                        swapped = false;
+                    }
+                }
+
+                joinUI.innerHTML = `<div class="row">
+                                      <div class="col-10">
+                                          <div id="TableLeft" >
+                                            <label id="LeftLabel">Left Table: ${table_name_1}</label>
+                                            <div id="joinSelectize1"></div>
+                                          </div>
+                                          <div id="TableRight">
+                                            <label id="RightLabel">Right Table: ${table_name_2}</label>
+                                            <div id="joinSelectize2"></div>
+                                          </div>
+                                      </div>
+                                      <div class="col-1"style="display: flex; justify-content: center; align-items: center;">
+                                        <button id="swapTables" class="btn btn-primary center-block"><i class="fas fa-exchange-alt fa-rotate-90"></i></button>
+                                      </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col">
+                                        <label>Type of Join</label>
+                                        <select id="joinType" class="form-control">
+                                          <option>LEFT OUTER JOIN</option>
+                                          <option>RIGHT OUTER JOIN</option>
+                                          <option>FULL OUTER JOIN</option>
+                                          <option>INNER JOIN</option>
+                                          <option>LEFT SEMI JOIN</option>
+                                          <option>LEFT ANTI JOIN</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                    <div class="row">
+                                    <div class="col">
+                                        <button id="sqlJoinSubmit" type="submit" class="btn btn-primary">Submit</button>
+                                        </div>
+                                    </div>`;
+
+
+                document.getElementById("form").appendChild(joinUI);
+
+                // Create Selectize for first table
+                let columns1 = response[0];
+                let options = [];
+                columns1.forEach(function (val, idx) {
+                    options.push({id: idx, label: val});
+                });
+                $("#joinSelectize1").selectize({
+                    placeholder: "Select key-columns for join...",
+                    maxItems: null,
+                    valueField: 'id',
+                    labelField: 'label',
+                    searchField: 'label',
+                    options: options,
+                    create: false
+                });
+
+                // Create Selectize for second table
+                let columns2 = response[1];
+                options = [];
+                columns2.forEach(function (val, idx) {
+                    options.push({id: idx, label: val});
+                });
+                $("#joinSelectize2").selectize({
+                    placeholder: "Select key-columns for join...",
+                    maxItems: null,
+                    valueField: 'id',
+                    labelField: 'label',
+                    searchField: 'label',
+                    options: options,
+                    create: false
+                });
+
+                function sqlJoinResponse() {
+                    let columns1 = getSelectize("#joinSelectize1");
+                    let columns2 = getSelectize("#joinSelectize2");
+                    let join_type = getSelect("joinType");
+                    console.log(columns1);
+                    console.log(columns2);
+                    console.log(table_id_1);
+                    console.log(table_id_2);
+                    console.log(join_type);
+
+                    $.post("sqlJoinResponse", {
+                        id_1: table_id_1, join_columns_1: JSON.stringify(columns1),
+                        id_2: table_id_2, join_columns_2: JSON.stringify(columns2),
+                        join_type: join_type
+                    }, function (response, status) {
+                        visualizeResponse(response)
+                    });
+                }
+
+                $("#sqlJoinSubmit").click(sqlJoinResponse);
+
+                $("#swapTables").click(swapTables);
+
+            })
+    }
+
+</script>
+<script>
+    // ############################ Streaming-Functions ############################
+
+    /**
+     * This function plots a line-plot for a selected stream.
+     */
     function vizualizeStream() {
         let selected = cy.$(':selected').jsons();
         if (selected.length != 1) return;
@@ -901,8 +1080,70 @@
         });
     }
 
-</script>
+    /**
+     * This function applies a window function on a stream.
+     * The user can choose the parameters of the window
+     * and the type of aggregation.
+     */
+    function windowedStream() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
 
+        let id = selected[0].data.id;
+
+        const form = document.getElementById("form");
+        while (form.firstChild) {
+            form.removeChild(form.firstChild);
+        }
+
+        let windowUIDiv = document.createElement("div");
+        windowUIDiv.id = "windowStreamUI";
+        windowUIDiv.innerHTML = `<label>Define Window Function</label>
+                                  <div class="input-group mb-3">
+                                      <div class="input-group-prepend">
+                                        <span class="input-group-text">Window Length</span>
+                                      </div>
+                                      <input id="windowLength" type="number" class="form-control" >
+                                      <div class="input-group-prepend">
+                                        <span class="input-group-text">Sliding Interval</span>
+                                      </div>
+                                      <input id="windowInterval" type="number" class="form-control" >
+                                      <select class="form-control" id="aggregationFunction">
+                                        <option>Sum</option>
+                                        <option>Mean</option>
+                                        <option>Min</option>
+                                        <option>Max</option>
+                                      </select>
+                                      <button id="windowStreamSubmit" type="submit" class="btn btn-primary">Submit</button>
+                                  </div>`;
+        form.appendChild(windowUIDiv);
+
+        function windowedStreamResponse() {
+            let windowLength = document.getElementById("windowLength").value;
+            let windowInterval = document.getElementById("windowInterval").value;
+
+            let aggregationFunctionUI = document.getElementById("aggregationFunction");
+            let aggregationFunction = aggregationFunctionUI.options[aggregationFunctionUI.selectedIndex].value;
+
+            $.post("windowedStreamResponse", {
+                    id: id,
+                    windowLength: windowLength,
+                    windowInterval: windowInterval,
+                    aggregationFunction: aggregationFunction
+                },
+                function (response, status) {
+                    visualizeResponse(response)
+                });
+
+        }
+
+        let button = document.getElementById("windowStreamSubmit");
+        button.addEventListener("click", windowedStreamResponse);
+
+    }
+
+
+</script>
 
 <script>
     /* Loop through all dropdown buttons to toggle between hiding and showing its dropdown content - This allows the user to have multiple dropdowns without any conflict */

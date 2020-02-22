@@ -9,6 +9,8 @@ from utils import *
 from pyspark.sql.functions import col
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
+from pyspark.streaming import StreamingContext
+
 # --------END Spark imports  --------
 
 # -------- Bookeh imports  --------
@@ -17,42 +19,44 @@ from bokeh.embed import components
 # --------END Bokeh imports  --------
 
 
-
 from pykafka import KafkaClient
 
-#os.environ["HADOOP_CONF_DIR"] = "/usr/local/hadoop/etc/hadoop"
+# os.environ["HADOOP_CONF_DIR"] = "/usr/local/hadoop/etc/hadoop"
 app = Flask(__name__)
 
+spark = get_spark_Session()
+spark.sparkContext.addFile("utils.py")
 
+ssc = StreamingContext(spark.sparkContext, 1)
 
-spark, ssc = get_spark_Session()
 print("Spark-Session Created!")
 data_sources = spark.sql("show tables in default").toPandas()
 data_sources = data_sources["tableName"].tolist()
 print(data_sources)
 
-HOSTS = "cluster0309:9094"
+HOSTS = "cluster0101:9094"
 client = KafkaClient(HOSTS)
 topics = [topic.decode("utf-8") for topic in list(client.topics.keys())]
-
-
-
 
 data = ["data1", "data2", "data3", "data4"]
 
 graph = Graph()
 
+
 @app.route('/')
 def hello_world():
     global data_sources
-    return render_template("ui.html", tables=data_sources, topics=topics, nodes=graph.get_nodes(), edges=graph.get_edges())
+    return render_template("ui.html", tables=data_sources, topics=topics, nodes=graph.get_nodes(),
+                           edges=graph.get_edges())
+
 
 @app.route('/addDataSource', methods=['POST'])
 def addDataSource():
     id = request.form['id']
     node = Source(id)
     graph.add_node(node)
-    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps([])}
+
 
 @app.route('/sqlFilter', methods=['POST'])
 def sqlFilter():
@@ -65,6 +69,7 @@ def sqlFilter():
     dictionary = dict(zip(columns, data_types))
     return dictionary
 
+
 @app.route('/sqlFilterResponse', methods=['POST'])
 def sqlFilterResponse():
     conditionsInput = json.loads(request.form['conditions'])
@@ -73,9 +78,10 @@ def sqlFilterResponse():
 
     condition, label = createFilter(conditionsInput)
     df = node.df.where(condition)
-    node = Node(label="Filter\n"+label,df=df,inputs=[node])
+    node = Node(label="Filter\n" + label, df=df, inputs=[node])
     graph.add_node(node)
-    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
+
 
 @app.route('/sqlSelect', methods=['POST'])
 def sqlSelect():
@@ -83,6 +89,7 @@ def sqlSelect():
     print(id)
     node = graph[id]
     return jsonify(node.df.schema.names)
+
 
 @app.route('/sqlSelectResponse', methods=['POST'])
 def sqlSelectResponse():
@@ -95,14 +102,14 @@ def sqlSelectResponse():
     df = None
     label = "Select " + ", ".join(columns)
 
-    if len(columns)==len(rename):
+    if len(columns) == len(rename):
         df = source.df.select(columns).toDF(*rename)
-        label+= "\nAS " + ", ".join(rename)
+        label += "\nAS " + ", ".join(rename)
     else:
         df = source.df.select(columns)
-    node = Node(label=label,df=df,inputs=[source])
+    node = Node(label=label, df=df, inputs=[source])
     graph.add_node(node)
-    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
 
 @app.route('/sqlGetUnique', methods=['POST'])
@@ -118,7 +125,8 @@ def sqlGetRange():
     id = request.form['id']
     column = request.form['column']
     df = graph[id].df
-    return jsonify(df.select(column).rdd.min()[0],df.select(column).rdd.max()[0])
+    return jsonify(df.select(column).rdd.min()[0], df.select(column).rdd.max()[0])
+
 
 @app.route('/sqlGetDateRange', methods=['POST'])
 def sqlGetDateRange():
@@ -127,7 +135,51 @@ def sqlGetDateRange():
     df = graph[id].df.select(column)
     df = df.withColumn(column, df[column].cast(DateType()))
     dates = df.select(column).where(col(column).isNotNull())
-    return jsonify(dates.rdd.min()[0],dates.rdd.max()[0])
+    return jsonify(dates.rdd.min()[0], dates.rdd.max()[0])
+
+
+@app.route("/sqlJoin", methods=['POST'])
+def sqlJoin():
+    id_1 = request.form['id_1']
+    id_2 = request.form['id_2']
+    node_1 = graph[id_1]
+    node_2 = graph[id_2]
+    return jsonify(node_1.df.schema.names, node_2.df.schema.names)
+
+
+@app.route('/sqlJoinResponse', methods=['POST'])
+def sqlJoinResponse():
+    id_1 = request.form['id_1']
+    id_2 = request.form['id_2']
+    join_columns_1 = eval(request.form['join_columns_1'])
+    join_columns_2 = eval(request.form['join_columns_2'])
+    join_type = request.form['join_type']
+
+    assert len(join_columns_1) == len(join_columns_2)
+
+    translate_join_type_to_sparksql = {
+        "LEFT OUTER JOIN": "left_outer",
+        "RIGHT OUTER JOIN": "right_outer",
+        "FULL OUTER JOIN": "full_outer",
+        "INNER JOIN": "inner",
+        "LEFT SEMI JOIN": "left_semi",
+        "LEFT ANTI JOIN": "left_anti"}
+
+
+    node_1 = graph[id_1]
+    df_1 = node_1.df
+
+    node_2 = graph[id_2]
+    df_2 = node_2.df
+
+    cond = [df_1[join_columns_1[i]] == df_2[join_columns_2[i]] for i in range(len(join_columns_1))]
+    df = df_1.join(df_2, on=cond, how=translate_join_type_to_sparksql[join_type])
+
+    node = Node(label=join_type, df=df, inputs=[node_1, node_2])
+    graph.add_node(node)
+
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
+
 
 @app.route('/showTable', methods=['POST'])
 def showTable():
@@ -146,24 +198,23 @@ def showTable():
 @app.route('/addStreamingDataSource', methods=['POST'])
 def addStreamingDataSource():
     id = request.form['id']
-    node = StreamingSource(id,ssc)
+    node = StreamingSource(id, ssc)
     graph.add_node(node)
-    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps([])}
-
-
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps([])}
 
 
 streaming_data = dict()
+
+
 @app.route('/vizualizeStream', methods=['POST'])
 def vizualizeStream():
     id = request.form['id']
     source = graph[id]
     stream = source.stream
 
-    stream.map(lambda x: filterDict(eval(x[1]), isNumerical))\
-        .foreachRDD(lambda time,rdd: AverageAndStd(time,rdd,streaming_data,id))
+    stream.foreachRDD(lambda time, rdd: AverageAndStd(time, rdd, streaming_data, id))
 
-    node = StreamingNode(label="Visualize",stream=stream,inputs=[source])
+    node = StreamingNode(label="Visualize", stream=stream, inputs=[source])
     graph.add_node(node)
     ssc.start()
 
@@ -171,22 +222,47 @@ def vizualizeStream():
         time.sleep(1)
 
     df = streaming_data[id]
-    plots.append(make_line_plot( df_to_dict(df), id))
+    plots.append(make_line_plot(df_to_dict(df), id))
 
-    #ssc.awaitTermination()
-    return {"node":json.dumps(node.get_Cyto_node()),"edges":json.dumps(node.get_Cyto_edges())}
+    # ssc.awaitTermination()
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
 
+@app.route('/windowedStreamResponse', methods=['POST'])
+def windowedStreamResponse():
+    # Get selected Node from Graph
+    id = request.form['id']
+    source = graph[id]
+    stream = source.stream
+    #
+    windowLength = int(request.form['windowLength'])
+    windowInterval = int(request.form['windowInterval'])
+    if request.form['aggregationFunction'] == "Sum":
+        windowed_stream = stream.window(windowLength, windowInterval)
+        windowed_stream = windowed_stream.reduce(reduceSum)
+    if request.form['aggregationFunction'] == "Mean":
+        windowed_stream = stream.map(countStream).window(windowLength, windowInterval).reduce(reduceSum).map(
+            count_to_mean)
+    windowed_stream.pprint()
+    ssc.start()
+    node = StreamingNode(label="Window: \n" + str(windowLength) + "s / " + str(windowInterval) + " s", stream=stream,
+                         inputs=[source], ssc=ssc)
+    graph.add_node(node)
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
 
 plots = []
+
+
 @app.route('/dashboard/')
 def show_dashboard():
     global plots
     return render_template('plots.html', plots=plots)
 
 
-x=0
+x = 0
+
+
 @app.route('/data/<id>/', methods=['POST'])
 def data(id):
     global streaming_data
