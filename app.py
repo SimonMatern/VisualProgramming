@@ -10,13 +10,16 @@ from pyspark.sql.functions import col
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
 from pyspark.streaming import StreamingContext
-
 # --------END Spark imports  --------
 
 # -------- Bookeh imports  --------
 from bokeh.plotting import figure
 from bokeh.embed import components
 # --------END Bokeh imports  --------
+
+import sqlalchemy as sql
+import pandas as pd
+
 
 
 from pykafka import KafkaClient
@@ -181,6 +184,23 @@ def sqlJoinResponse():
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
 
+@app.route('/sqlConnect', methods=['POST'])
+def sqlConnect():
+
+    host = request.form['host']
+    username = request.form['username']
+    password = request.form['password']
+    sql_type = request.form['sql_type']
+
+    #example = 'mysql://semjon:visualpassword@db4free.net:3306/visual_prog'
+    connect_string = username+":"+ password + "@" + host
+    if sql_type =="MySQL":
+        connect_string = "mysql://" +connect_string
+    sql_engine = sql.create_engine(connect_string)
+    df = pd.read_sql_query("show tables", sql_engine)
+    return jsonify(df.loc[0].tolist())
+
+
 @app.route('/showTable', methods=['POST'])
 def showTable():
     id = request.form['id']
@@ -252,8 +272,6 @@ def windowedStreamResponse():
 
 
 plots = []
-
-
 @app.route('/dashboard/')
 def show_dashboard():
     global plots
@@ -261,8 +279,6 @@ def show_dashboard():
 
 
 x = 0
-
-
 @app.route('/data/<id>/', methods=['POST'])
 def data(id):
     global streaming_data

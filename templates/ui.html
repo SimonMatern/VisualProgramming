@@ -80,7 +80,7 @@
 </div> -->
 
 
-<div class="sidenav">
+<div id="sidenav" class="sidenav">
     <button class="dropdown-btn">Hive Tables
         <i class="fa fa-caret-down"></i>
     </button>
@@ -88,9 +88,15 @@
         {% for d in tables %}
             <a href="#" onclick="addDataSource('{{ d }}')">{{ d }}</a>
         {% endfor %}
-
     </div>
-    <button class="dropdown-btn">SQL
+    <button class="dropdown-btn">SQL-Databases
+        <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-container">
+        <a href="#" onclick="addSQLDataSource()">Add SQL Database</a>
+    </div>
+
+    <button class="dropdown-btn">SQL-Functions
         <i class="fa fa-caret-down"></i>
     </button>
     <div class="dropdown-container">
@@ -280,6 +286,14 @@
         tmp.replaceWith(b);
     }
 
+    function clear(id) {
+        const ui = document.getElementById(id);
+        while (ui.firstChild) {
+            ui.removeChild(ui.firstChild);
+        }
+
+    }
+
     /** ############################################### END Utility functions########################################*/
 
 
@@ -313,6 +327,113 @@
             visualizeResponse(response)
         });
     }
+
+    function addSQLDataSource() {
+
+        // remove previous UI
+        clear("form");
+
+        let sqlUI = document.createElement("div");
+        sqlUI.innerHTML = `<form>
+                              <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                  <span class="input-group-text"><i class="fas fa-server"></i></span>
+                                </div>
+                                <input type="text" id="host" class="form-control" placeholder="example.com:port/database">
+                              </div>
+
+                              <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                  <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                </div>
+                                <input type="text" id ="username" class="form-control" placeholder="Username">
+                              </div>
+
+                              <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                  <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                </div>
+                                <input type="password" id="password" class="form-control" placeholder="Password">
+                              </div>
+
+                              <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                  <span class="input-group-text"><i class="fas fa-database"></i></span>
+                                </div>
+                                <select class="custom-select" id="databasetype">
+                                    <option value="" selected disabled>Please select type of SQL-Database</option>
+                                    <option>MySQL</option>
+                                    <option>PostgreSQL</option>
+                                </select>
+                              </div>
+                            <button type="submit" id="connectSQL" class="btn btn-primary">Connect</button>
+                           </form>`;
+
+        document.getElementById("form").appendChild(sqlUI);
+
+        function SQLConnect() {
+            let host = document.getElementById("host").value;
+            let username = document.getElementById("username").value;
+            let password = document.getElementById("password").value;
+            let sql_type = getSelect("databasetype");
+
+            $.post("sqlConnect", {host: host, username: username, password: password, sql_type: sql_type},
+                function (response, status) {
+
+                    // Get Tables in database
+                    let tables = response;
+
+                    // Get Sidenav Element
+                    let sidenav = document.getElementById("sidenav");
+
+                    // Create separation line
+                    let hr = document.createElement("HR");
+                    hr.style.backgroundColor = "#818181";
+                    sidenav.appendChild(hr);
+
+                    // create dropdown-button
+                    let databaseBTN = document.createElement("BUTTON");
+                    databaseBTN.classList.add("dropdown-btn");
+                    databaseBTN.innerHTML = `${host} <i class="fa fa-caret-down"></i>`;
+                    sidenav.appendChild(databaseBTN);
+
+                    // create container for dropdown-elements
+                    let databaseDIV = document.createElement("div");
+                    databaseDIV.classList.add("dropdown-container");
+
+
+                    // creates list elements:  <a href="#" onclick="sqlSelect()"> tableName </a>
+                    // and appends them to dropdown-container
+                    tables.forEach(function (tableName, idx) {
+                        let tableUI = document.createElement("a");
+                        tableUI.setAttribute('href', "#");
+                        tableUI.innerHTML = tableName;
+                        databaseDIV.appendChild(tableUI);
+                    });
+
+                    // add dropdown-container to sidenav
+                    sidenav.appendChild(databaseDIV);
+
+                    // add toggle to dropdown-button
+                    databaseBTN.addEventListener("click", function () {
+                        this.classList.toggle("active");
+                        let dropdownContent = this.nextElementSibling;
+                        if (dropdownContent.style.display === "block") {
+                            dropdownContent.style.display = "none";
+                        } else {
+                            dropdownContent.style.display = "block";
+                        }
+                    });
+
+                });
+
+        }
+
+        $("#connectSQL").click(SQLConnect);
+
+
+    }
+
 
     // ############################################# SQL-Functions ############################################
     function showTable() {
@@ -930,7 +1051,8 @@
     }
 
     /**
-     *
+     * This function is the visual programming component for SQL-Joins.
+     * The user can select key-columns and the type of join operation.
      */
     function sqlJoin() {
         let selected = cy.$(':selected').jsons();
@@ -960,8 +1082,7 @@
                         document.getElementById("LeftLabel").innerText = `Right Table: ${table_name_1}`;
                         document.getElementById("RightLabel").innerText = `Left Table: ${table_name_2}`;
                         swapped = true;
-                    }
-                    else{
+                    } else {
                         document.getElementById("LeftLabel").innerText = `Left Table: ${table_name_1}`;
                         document.getElementById("RightLabel").innerText = `Right Table: ${table_name_2}`;
                         swapped = false;
@@ -1041,12 +1162,6 @@
                     let columns1 = getSelectize("#joinSelectize1");
                     let columns2 = getSelectize("#joinSelectize2");
                     let join_type = getSelect("joinType");
-                    console.log(columns1);
-                    console.log(columns2);
-                    console.log(table_id_1);
-                    console.log(table_id_2);
-                    console.log(join_type);
-
                     $.post("sqlJoinResponse", {
                         id_1: table_id_1, join_columns_1: JSON.stringify(columns1),
                         id_2: table_id_2, join_columns_2: JSON.stringify(columns2),
@@ -1057,7 +1172,6 @@
                 }
 
                 $("#sqlJoinSubmit").click(sqlJoinResponse);
-
                 $("#swapTables").click(swapTables);
 
             })
@@ -1147,20 +1261,25 @@
 
 <script>
     /* Loop through all dropdown buttons to toggle between hiding and showing its dropdown content - This allows the user to have multiple dropdowns without any conflict */
-    var dropdown = document.getElementsByClassName("dropdown-btn");
-    var i;
+    function activateDropdowns() {
+        let dropdown = document.getElementsByClassName("dropdown-btn");
+        let i;
 
-    for (i = 0; i < dropdown.length; i++) {
-        dropdown[i].addEventListener("click", function () {
-            this.classList.toggle("active");
-            var dropdownContent = this.nextElementSibling;
-            if (dropdownContent.style.display === "block") {
-                dropdownContent.style.display = "none";
-            } else {
-                dropdownContent.style.display = "block";
-            }
-        });
+        for (i = 0; i < dropdown.length; i++) {
+            dropdown[i].addEventListener("click", function () {
+                this.classList.toggle("active");
+                let dropdownContent = this.nextElementSibling;
+                if (dropdownContent.style.display === "block") {
+                    dropdownContent.style.display = "none";
+                } else {
+                    dropdownContent.style.display = "block";
+                }
+            });
+        }
+
     }
+
+    activateDropdowns();
 </script>
 
 </body>
