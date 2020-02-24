@@ -328,6 +328,21 @@
         });
     }
 
+    /**
+     * Add a SQL table as data source to the graph
+     * @param connection_id
+     * @param table_name
+     */
+    function addSQLTable(connection_id, table_name){
+        $.post("addSQLTable", {connection_id:connection_id, table_name:table_name},
+         (response, status)=> visualizeResponse(response));
+    }
+
+    /**
+     * This function creates visual prog. component to establish a connection
+     * to a remote SQL-Database. The tables in the database are added to the sidenav
+     * and can be selected as data sources.
+     */
     function addSQLDataSource() {
 
         // remove previous UI
@@ -381,7 +396,10 @@
                 function (response, status) {
 
                     // Get Tables in database
-                    let tables = response;
+                    let tables = response[0];
+
+                    //get connection id
+                    let connection_id = response[1];
 
                     // Get Sidenav Element
                     let sidenav = document.getElementById("sidenav");
@@ -408,6 +426,8 @@
                         let tableUI = document.createElement("a");
                         tableUI.setAttribute('href', "#");
                         tableUI.innerHTML = tableName;
+                        tableUI.onclick = () => addSQLTable(connection_id,tableName);
+
                         databaseDIV.appendChild(tableUI);
                     });
 
@@ -1159,12 +1179,16 @@
                 });
 
                 function sqlJoinResponse() {
-                    let columns1 = getSelectize("#joinSelectize1");
-                    let columns2 = getSelectize("#joinSelectize2");
+
+                    // Set parameters but consider swapping of left and right table
+                    let columns1 = (!swapped ? getSelectize("#joinSelectize1") : getSelectize("#joinSelectize2"));
+                    let columns2 = (!swapped ? getSelectize("#joinSelectize2") : getSelectize("#joinSelectize1"));
+                    let id_1 = (!swapped ? table_id_1 : table_id_2);
+                    let id_2 = (!swapped ? table_id_2 : table_id_1);
                     let join_type = getSelect("joinType");
                     $.post("sqlJoinResponse", {
-                        id_1: table_id_1, join_columns_1: JSON.stringify(columns1),
-                        id_2: table_id_2, join_columns_2: JSON.stringify(columns2),
+                        id_1: id_1, join_columns_1: JSON.stringify(columns1),
+                        id_2: id_2, join_columns_2: JSON.stringify(columns2),
                         join_type: join_type
                     }, function (response, status) {
                         visualizeResponse(response)

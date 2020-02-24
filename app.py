@@ -184,9 +184,11 @@ def sqlJoinResponse():
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
 
+sql_connections = {}
 @app.route('/sqlConnect', methods=['POST'])
 def sqlConnect():
 
+    # Get Connection Parameters
     host = request.form['host']
     username = request.form['username']
     password = request.form['password']
@@ -196,10 +198,41 @@ def sqlConnect():
     connect_string = username+":"+ password + "@" + host
     if sql_type =="MySQL":
         connect_string = "mysql://" +connect_string
-    sql_engine = sql.create_engine(connect_string)
-    df = pd.read_sql_query("show tables", sql_engine)
-    return jsonify(df.loc[0].tolist())
+        sql_engine = sql.create_engine(connect_string)
+        df = pd.read_sql_query("show tables", sql_engine)
+        tables = df.loc[0].tolist()
+        sql_engine.dispose()
 
+    if sql_type =="PostgreSQL":
+        connect_string = "postgres://" +connect_string
+        sql_engine = sql.create_engine(connect_string)
+        df = pd.read_sql_query("SELECT * FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema';", sql_engine)
+        tables = df["tablename"].tolist()
+        sql_engine.dispose()
+
+    connection_id = uuid.uuid1().hex
+    sql_connections[connection_id] = connect_string
+
+
+    return jsonify(tables, connection_id)
+
+@app.route("/addSQLTable", methods=['POST'])
+def addSQLTable():
+    # Get connection parameters
+    connection_id = request.form['connection_id']
+    table_name = request.form['table_name']
+
+    # Connect to database
+    sql_engine = sql.create_engine(sql_connections[connection_id])
+    query = "select * from " + table_name
+    pandas_df = pd.read_sql_query(query, sql_engine)
+    sql_engine.dispose()
+    df = spark.createDataFrame(pandas_df)
+
+    # Create Node and add to graph
+    node = Node(label="SQL: "+str(table_name), df=df)
+    graph.add_node(node)
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps([])}
 
 @app.route('/showTable', methods=['POST'])
 def showTable():
