@@ -33,9 +33,16 @@ spark.sparkContext.addFile("utils.py")
 ssc = StreamingContext(spark.sparkContext, 1)
 
 print("Spark-Session Created!")
-data_sources = spark.sql("show tables in default").toPandas()
-data_sources = data_sources["tableName"].tolist()
-print(data_sources)
+# data_sources = spark.sql("show tables in default").toPandas()
+# data_sources = data_sources["tableName"].tolist()
+# print(data_sources)
+
+# List all Hive Databases and their content
+dbs = spark.sql("show databases").toPandas()
+dbs_names = dbs["databaseName"].tolist()
+data_sources = {db : spark.sql("show tables in " +str(db)).toPandas()["tableName"].tolist()  for db in dbs_names}
+
+
 
 HOSTS = "cluster0101:9094"
 client = KafkaClient(HOSTS)

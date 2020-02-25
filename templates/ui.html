@@ -81,14 +81,19 @@
 
 
 <div id="sidenav" class="sidenav">
-    <button class="dropdown-btn">Hive Tables
-        <i class="fa fa-caret-down"></i>
-    </button>
+    <button class="dropdown-btn"> HIVE <i class="fa fa-caret-down"></i></button>
     <div class="dropdown-container">
-        {% for d in tables %}
-            <a href="#" onclick="addDataSource('{{ d }}')">{{ d }}</a>
+        {% for database, tables in tables.items() %}
+            <button class="dropdown-btn">  {{ database }} <i class="fa fa-caret-down"></i>
+            </button>
+            <div class="dropdown-container">
+                {% for d in tables %}
+                    <a href="#" onclick="addDataSource('{{ database }}.{{ d }}')">{{ d }}</a>
+                {% endfor %}
+            </div>
         {% endfor %}
     </div>
+
     <button class="dropdown-btn">SQL-Databases
         <i class="fa fa-caret-down"></i>
     </button>
@@ -335,9 +340,9 @@
      * @param connection_id
      * @param table_name
      */
-    function addSQLTable(connection_id, table_name){
-        $.post("addSQLTable", {connection_id:connection_id, table_name:table_name},
-         (response, status)=> visualizeResponse(response));
+    function addSQLTable(connection_id, table_name) {
+        $.post("addSQLTable", {connection_id: connection_id, table_name: table_name},
+            (response, status) => visualizeResponse(response));
     }
 
     /**
@@ -428,7 +433,7 @@
                         let tableUI = document.createElement("a");
                         tableUI.setAttribute('href', "#");
                         tableUI.innerHTML = tableName;
-                        tableUI.onclick = () => addSQLTable(connection_id,tableName);
+                        tableUI.onclick = () => addSQLTable(connection_id, tableName);
 
                         databaseDIV.appendChild(tableUI);
                     });
