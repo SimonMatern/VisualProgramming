@@ -108,6 +108,7 @@
         <a href="#" onclick="sqlSelect()">Select </a>
         <a href="#" onclick="sqlFilter()">Filter</a>
         <a href="#" onclick="sqlJoin()">Join</a>
+        <a href="#" onclick="hqlSaveTable()">Save Table</a>
     </div>
     <button class="dropdown-btn">Vizualize
         <i class="fa fa-caret-down"></i>
@@ -131,7 +132,6 @@
         <a href="#" onclick="windowedStream()">Window</a>
         <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
     </div>
-
 </div>
 
 
@@ -453,7 +453,6 @@
                     });
 
                 });
-
         }
 
         $("#connectSQL").click(SQLConnect);
@@ -463,6 +462,10 @@
 
 
     // ############################################# SQL-Functions ############################################
+
+    /**
+     * Show a sample from a selected table
+     */
     function showTable() {
         let selected = cy.$(':selected').jsons();
         if (selected.length != 1) return;
@@ -963,11 +966,7 @@
 
             }
 
-
             function sqlFilterResponse() {
-
-                console.log(inputIDs);
-
                 /**
                  Iterate over all conditions and generate a dictionary that will be send to the server.
                  Each data type creates a different dictionary used for filtering.
@@ -1208,6 +1207,48 @@
             })
     }
 
+
+    function hqlSaveTable() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+
+        let id = selected[0].data.id;
+        clear("form");
+
+        let saveUI = document.createElement("div");
+        saveUI.innerHTML = `<form>
+                              <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                  <span class="input-group-text">Table Name</span>
+                                </div>
+                                <input type="text" id="tableName" class="form-control" placeholder="Insert Name for Table">
+                              </div>
+                             <div class="form-group">
+                                    <div class="input-group">
+                                    <div class="input-group-prepend">
+                                      <span class="input-group-text"><i class="fas fa-server"></i></span>
+                                    </div>
+                                      <select class="form-control" id="dbs">
+                                        <option value="">Select a database...</option>
+                                        {% for database, tables in tables.items() %}
+                                        <option value=""> {{ database }} </option>
+                                        {% endfor %}
+                                      </select>
+                                    </div>
+                                  </div>
+                            <button type="submit" id="saveHQL" class="btn btn-primary">Submit</button>
+                           </form>`;
+        document.getElementById("form").appendChild(saveUI);
+
+        // $.post("hqlSaveTable", {id: id},(res,val)=>visualizeResponse(res));
+        $("#saveHQL").click(() => {
+            let db = getSelect("dbs");
+            let name = document.getElementById("tableName").value;
+            $.post("hqlSaveTable", {id: id, db:db, name:name}, {});
+        });
+
+
+    }
 </script>
 <script>
     // ############################ Streaming-Functions ############################

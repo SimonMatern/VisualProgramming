@@ -241,6 +241,13 @@ def addSQLTable():
     graph.add_node(node)
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps([])}
 
+@app.route("/hqlSaveTable", methods=['POST'])
+def hqlSaveTable():
+    id = request.form['id']
+    df = graph[id].df
+    df.createOrReplaceTempView("tmp")
+    spark.sql("create table visual_programming.save_in_hive_test as select * from tmp");
+
 @app.route('/showTable', methods=['POST'])
 def showTable():
     id = request.form['id']
