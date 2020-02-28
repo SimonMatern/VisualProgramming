@@ -94,11 +94,12 @@
         {% endfor %}
     </div>
 
-    <button class="dropdown-btn">SQL-Databases
+    <button class="dropdown-btn">Add Datasource
         <i class="fa fa-caret-down"></i>
     </button>
     <div class="dropdown-container">
         <a href="#" onclick="addSQLDataSource()">Add SQL Database</a>
+        <a href="#" onclick="uploadCSV()">Upload CSV</a>
     </div>
 
     <button class="dropdown-btn">SQL-Functions
@@ -460,6 +461,34 @@
 
     }
 
+    function uploadCSV() {
+        // remove previous UI
+        clear("form");
+
+        let uploadUI = document.createElement("div");
+        uploadUI.innerHTML = `<form action="upload.html" method="post" enctype="multipart/form-data">
+                                <input type="file" name="file" id="file">
+                                <input type="submit" value="Upload File" name="submit">
+                            </form>`;
+
+        uploadUI.innerHTML = `<form action="upload.html" method="post" enctype="multipart/form-data">
+                                  <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                      <span class="input-group-text"><i class="fas fa-server"></i></span>
+                                    </div>
+                                    <input type="text" name="name" id="name" class="form-control" placeholder="Name">
+                                  </div>
+
+                                  <div class="input-group mb-3">
+                                      <div class="custom-file">
+                                        <input type="file" class="custom-file-input" id="file" name="file">
+                                        <label class="custom-file-label" for="customFile">Choose file</label>
+                                      </div>
+                                  </div>
+                                  <button type="submit" id="submit" class="btn btn-primary">Submit</button>
+                              </form>`;
+        document.getElementById("form").appendChild(uploadUI);
+    }
 
     // ############################################# SQL-Functions ############################################
 
@@ -1244,7 +1273,7 @@
         $("#saveHQL").click(() => {
             let db = getSelect("dbs");
             let name = document.getElementById("tableName").value;
-            $.post("hqlSaveTable", {id: id, db:db, name:name}, {});
+            $.post("hqlSaveTable", {id: id, db: db, name: name}, {});
         });
 
 
