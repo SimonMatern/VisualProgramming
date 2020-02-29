@@ -244,9 +244,18 @@ def addSQLTable():
 @app.route("/hqlSaveTable", methods=['POST'])
 def hqlSaveTable():
     id = request.form['id']
+    db = request.form['db']
+    name = request.form['name']
+
+    tables = spark.sql("show tables in "+str(db)).toPandas()
+    tables = tables["tableName"].tolist()
+    if name in tables:
+        return
+
     df = graph[id].df
     df.createOrReplaceTempView("tmp")
-    spark.sql("create table visual_programming.save_in_hive_test as select * from tmp");
+    query = "create table {}.{} as select * from tmp".format(db,name)
+    spark.sql(query)
 
 @app.route('/showTable', methods=['POST'])
 def showTable():

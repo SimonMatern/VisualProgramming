@@ -1231,7 +1231,7 @@
                                       <select class="form-control" id="dbs">
                                         <option value="">Select a database...</option>
                                         {% for database, tables in tables.items() %}
-                                        <option value=""> {{ database }} </option>
+                                        <option> {{ database }} </option>
                                         {% endfor %}
                                       </select>
                                     </div>
@@ -1242,9 +1242,16 @@
 
         // $.post("hqlSaveTable", {id: id},(res,val)=>visualizeResponse(res));
         $("#saveHQL").click(() => {
-            let db = getSelect("dbs");
+            let selectedDB = getSelect("dbs");
             let name = document.getElementById("tableName").value;
-            $.post("hqlSaveTable", {id: id, db:db, name:name}, {});
+            let databases = {{ tables |tojson }};
+
+            if (databases[selectedDB].includes(name)) {
+                alert("Table with the same name already exists");
+                return;
+            }
+
+            $.post("hqlSaveTable", {id: id, db: selectedDB, name: name}, {});
         });
 
 
