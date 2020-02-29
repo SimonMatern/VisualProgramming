@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 import os
 
 import json
 import time
+import csv
+
 # -------- Spark imports  --------
 from pyspark.sql import Row
 from utils import *
@@ -54,7 +56,7 @@ graph = Graph()
 
 
 @app.route('/')
-def hello_world():
+def hello():
     global data_sources
     return render_template("ui.html", tables=data_sources, topics=topics, nodes=graph.get_nodes(),
                            edges=graph.get_edges())
@@ -257,6 +259,7 @@ def hqlSaveTable():
     query = "create table {}.{} as select * from tmp".format(db,name)
     spark.sql(query)
 
+
 @app.route('/showTable', methods=['POST'])
 def showTable():
     id = request.form['id']
@@ -268,6 +271,18 @@ def showTable():
     et.tostring(t)
     return et.tostring(t)
 
+@app.route('/upload.html',methods = ['POST'])
+def uploadCSV():
+    # Create variable for uploaded file
+    df = pd.read_csv(request.files.get('file'))
+    print(df)
+    name = request.form['name']
+    df = spark.createDataFrame(df)
+
+    # Create Node and add to graph
+    node = Node(label="CSV: " + str(name), df=df)
+    graph.add_node(node)
+    return redirect(url_for("hello"))
 
 ######################## Streaming ###############################
 
