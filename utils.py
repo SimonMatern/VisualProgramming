@@ -270,6 +270,14 @@ def make_line_plot(dictionary, id):
     script, div = components(plot)
     return script, div
 
+def make_scatter_plot(df, columns):
+    p = figure()
+    p.circle(x=columns[0], y=columns[1],
+             source=df)
+    script, div = components(p)
+    return script, div
+
+
 
 def df_to_dict(df):
     new_dict = dict()

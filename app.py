@@ -71,7 +71,8 @@ def addDataSource():
 
 
 @app.route('/sqlFilter', methods=['POST'])
-def sqlFilter():
+@app.route('/getColumns', methods=['POST'])
+def getColumns():
     id = request.form['id']
     print(id)
     node = graph[id]
@@ -257,7 +258,9 @@ def hqlSaveTable():
     df = graph[id].df
     df.createOrReplaceTempView("tmp")
     query = "create table {}.{} as select * from tmp".format(db,name)
+    print(query)
     spark.sql(query)
+    return "success"
 
 
 @app.route('/showTable', methods=['POST'])
@@ -341,7 +344,6 @@ def windowedStreamResponse():
     graph.add_node(node)
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
-
 plots = []
 @app.route('/dashboard/')
 def show_dashboard():
@@ -357,6 +359,24 @@ def data(id):
 
     return jsonify(**df_to_dict(streaming_data[id]))
 
+@app.route('/submitPlot', methods=['POST'])
+def submitPlot():
+    print("submitplot")
+    id = request.form['id']
+    print(request.form)
+    columns = eval(request.form['columns'])
+    print(columns)
+
+    source = graph[id]
+    df = source.df.toPandas()
+
+    print(columns)
+    print(id)
+
+    node = Node("Vizualize",df=None,inputs=[source])
+    plots.append(make_scatter_plot(df, columns))
+    graph.add_node(node)
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
 if __name__ == '__main__':
     app.run()

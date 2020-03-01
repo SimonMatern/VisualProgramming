@@ -116,6 +116,7 @@
     </button>
     <div class="dropdown-container">
         <a href="#" onclick="showTable()">Show Table</a>
+        <a href="#" onclick="scatterPlot()">Scatter Plot</a>
     </div>
     <hr style="background-color : #818181">
     <button class="dropdown-btn">Kafka Topics
@@ -220,6 +221,25 @@
         });
         let selection = columns.map(x => x.label);
         return selection;
+    }
+
+    /**
+     * Create a Selectize.js-UI given an Id and an array
+     */
+    function createSelectize(id, array, create=false, maxItems=null) {
+        var options = [];
+        array.forEach(function (val, idx) {
+            options.push({id: idx, label: val});
+        });
+
+        var selectizeInput = $('#' + id).selectize({
+            maxItems: maxItems,
+            valueField: 'id',
+            labelField: 'label',
+            searchField: 'label',
+            options: options,
+            create: create
+        });
     }
 
     /**
@@ -461,15 +481,14 @@
 
     }
 
+    /**
+     * This function creates creates an UI for Uploading a CSV.
+     */
     function uploadCSV() {
         // remove previous UI
         clear("form");
 
         let uploadUI = document.createElement("div");
-        uploadUI.innerHTML = `<form action="upload.html" method="post" enctype="multipart/form-data">
-                                <input type="file" name="file" id="file">
-                                <input type="submit" value="Upload File" name="submit">
-                            </form>`;
 
         uploadUI.innerHTML = `<form action="upload.html" method="post" enctype="multipart/form-data">
                                   <div class="input-group mb-3">
@@ -1237,6 +1256,9 @@
     }
 
 
+    /**
+     * Save selected table in Hive
+     */
     function hqlSaveTable() {
         let selected = cy.$(':selected').jsons();
         if (selected.length != 1) return;
@@ -1287,7 +1309,7 @@
     }
 </script>
 <script>
-    // ############################ Streaming-Functions ############################
+    // ############################ END: Streaming-Functions ############################
 
     /**
      * This function plots a line-plot for a selected stream.
@@ -1364,6 +1386,47 @@
 
     }
 
+    // ############################ Vizualization ############################
+
+    function scatterPlot() {
+        clear("form");
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+        let id = selected[0].data.id;
+
+        $.post("getColumns", {id: id}, function (response, status) {
+
+            var columns = Object.keys(response);
+            var types = Object.values(response);
+            console.log(columns);
+            console.log(types);
+
+            let scatterUI = document.createElement("div");
+
+            scatterUI.innerHTML = `<div>
+                                     <div class="mb-3">
+                                          <div id="TableLeft" >
+                                            <label>Select values to plot</label>
+                                            <div id="columns"></div>
+                                          </div>
+                                      </div>
+                                      <button type="submit" id="submitPlot" class="btn btn-primary">Submit</button>
+                                    </div>`;
+            document.getElementById("form").appendChild(scatterUI);
+            createSelectize("columns",columns,false,2);
+
+            function submitPlot(){
+                selected = getSelectize("#columns");
+                console.log(selected);
+                 $.post("submitPlot", {id: id, columns : JSON.stringify(columns)},
+                     function (response, status) {visualizeResponse(response)});
+            }
+            $("#submitPlot").click(submitPlot);
+
+        });
+
+
+    }
 
 </script>
 
