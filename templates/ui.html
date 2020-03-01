@@ -116,7 +116,7 @@
     </button>
     <div class="dropdown-container">
         <a href="#" onclick="showTable()">Show Table</a>
-        <a href="#" onclick="scatterPlot()">Scatter Plot</a>
+        <a href="#" onclick="plot()">Scatter Plot</a>
     </div>
     <hr style="background-color : #818181">
     <button class="dropdown-btn">Kafka Topics
@@ -1388,7 +1388,7 @@
 
     // ############################ Vizualization ############################
 
-    function scatterPlot() {
+    function plot() {
         clear("form");
         let selected = cy.$(':selected').jsons();
         if (selected.length != 1) return;
@@ -1401,18 +1401,24 @@
             console.log(columns);
             console.log(types);
 
-            let scatterUI = document.createElement("div");
+            let plotUI = document.createElement("div");
 
-            scatterUI.innerHTML = `<div>
+            plotUI.innerHTML = `<div>
                                      <div class="mb-3">
                                           <div id="TableLeft" >
                                             <label>Select values to plot</label>
                                             <div id="columns"></div>
                                           </div>
                                       </div>
+                                     <div class="mb-3">
+                                        <select id="joinType" class="form-control">
+                                          <option>Scatter Plot</option>
+                                          <option>RIGHT OUTER JOIN</option>
+                                        </select>
+                                      </div>
                                       <button type="submit" id="submitPlot" class="btn btn-primary">Submit</button>
                                     </div>`;
-            document.getElementById("form").appendChild(scatterUI);
+            document.getElementById("form").appendChild(plotUI);
             createSelectize("columns",columns,false,2);
 
             function submitPlot(){
