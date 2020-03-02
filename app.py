@@ -361,20 +361,19 @@ def data(id):
 
 @app.route('/submitPlot', methods=['POST'])
 def submitPlot():
-    print("submitplot")
     id = request.form['id']
-    print(request.form)
-    columns = eval(request.form['columns'])
-    print(columns)
+    x_columns = eval(request.form['xColumns'])
+    y_columns = eval(request.form['yColumns'])
 
+    plot_type = request.form['plotType']
+    title = request.form['title']
+    xAxisLabel = request.form['xAxisLabel']
+    yAxisLabel = request.form['yAxisLabel']
+    assert len(x_columns) == len(y_columns) or len(x_columns)==1
     source = graph[id]
     df = source.df.toPandas()
-
-    print(columns)
-    print(id)
-
     node = Node("Vizualize",df=None,inputs=[source])
-    plots.append(make_scatter_plot(df, columns))
+    plots.append(make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel,yAxisLabel))
     graph.add_node(node)
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 

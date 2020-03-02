@@ -15,6 +15,7 @@ from xml.etree import ElementTree as et
 import os
 from os.path import expanduser, join, abspath
 from datetime import datetime
+from random import shuffle
 
 
 from flask import Flask, request, jsonify, render_template
@@ -23,8 +24,10 @@ from flask import Flask, request, jsonify, render_template
 from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models.sources import AjaxDataSource
+from bokeh.palettes import Category20
 # --------END Bokeh imports  --------
 import uuid
+import itertools
 
 def get_spark_Session():
     os.environ["SPARK_HOME"] = "/home/nodeuser/nfs_share/spark-2.4.4-bin-hadoop2.7"
@@ -270,10 +273,44 @@ def make_line_plot(dictionary, id):
     script, div = components(plot)
     return script, div
 
-def make_scatter_plot(df, columns):
+def make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel, yAxisLabel):
+    """
+
+    :param df:
+    :param x_columns:
+    :param y_columns:
+    :param plot_type:
+    :param title:
+    :param xAxisLabel:
+    :param yAxisLabel:
+    :return:
+    """
     p = figure()
-    p.circle(x=columns[0], y=columns[1],
-             source=df)
+    p.title.text = title
+    p.xaxis.axis_label = xAxisLabel
+    p.yaxis.axis_label = yAxisLabel
+
+    if len(y_columns) in range(3,20):
+        colors = itertools.cycle(Category20[len(y_columns)])
+    else:
+        pallette = Category20[20]
+        shuffle(pallette)
+        colors = itertools.cycle(pallette)
+
+    if len(x_columns)==len(y_columns):
+        for i in range(len(x_columns)):
+            if plot_type== "Scatter Plot":
+                p.circle(x=x_columns[i], y=y_columns[i], source=df, color=next(colors))
+            if plot_type== "Line Plot":
+                p.line(x=x_columns[i], y=y_columns[i], source=df, color=next(colors))
+
+    elif len(x_columns)==1:
+        for column in y_columns:
+            if plot_type == "Scatter Plot":
+                p.circle(x=x_columns[0], y=column, source=df, color=next(colors))
+            if plot_type == "Line Plot":
+                p.line(x=x_columns[0], y=column, source=df, color=next(colors))
+
     script, div = components(p)
     return script, div
 
