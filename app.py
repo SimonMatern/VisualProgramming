@@ -372,7 +372,7 @@ def submitPlot():
     assert len(x_columns) == len(y_columns) or len(x_columns)==1
     source = graph[id]
     df = source.df.toPandas()
-    node = Node("Vizualize",df=None,inputs=[source])
+    node = Node(plot_type,df=None,inputs=[source])
     plots.append(make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel,yAxisLabel))
     graph.add_node(node)
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}

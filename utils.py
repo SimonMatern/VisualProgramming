@@ -302,14 +302,14 @@ def make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel, yAxisLabel
             if plot_type== "Scatter Plot":
                 p.circle(x=x_columns[i], y=y_columns[i], source=df, color=next(colors))
             if plot_type== "Line Plot":
-                p.line(x=x_columns[i], y=y_columns[i], source=df, color=next(colors))
+                p.line(x=x_columns[i], y=y_columns[i], legend=dict(value=y_columns[i]), source=df, color=next(colors))
 
     elif len(x_columns)==1:
         for column in y_columns:
             if plot_type == "Scatter Plot":
                 p.circle(x=x_columns[0], y=column, source=df, color=next(colors))
             if plot_type == "Line Plot":
-                p.line(x=x_columns[0], y=column, source=df, color=next(colors))
+                p.line(x=x_columns[0], y=column, source=df, color=next(colors), legend=dict(value=column))
 
     script, div = components(p)
     return script, div
