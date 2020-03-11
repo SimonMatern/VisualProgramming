@@ -37,14 +37,26 @@ def get_spark_Session():
     os.environ["LD_LIBRARY_PATH"] = "/usr/local/hadoop/lib/native/"
 
     # Uncomment following line for Streaming
-    #os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 pyspark-shell'
+    os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-streaming-kafka-0-8_2.11:2.0.2 pyspark-shell'
 
     print(os.environ)
     warehouse_location = abspath('/user/hive/warehouse')
     # sc = SparkContext(master = "yarn-client")
 
     #TODO: Change to Yarn-Client
-    sconf = SparkConf().setAll([('spark.master', 'spark://master:7077'),
+
+    ######### Standalone-Spark #########
+    # sconf = SparkConf().setAll([('spark.master', 'spark://master:7077'),
+    #                             ('spark.deploy-mode', 'client'),
+    #                             ('spark.executor.memory', '4g'),
+    #                             ('spark.app.name', 'Flask-Spark'),
+    #                             ('spark.executor.cores', '4'),
+    #                             ('spark.driver.memory', '4g'),
+    #                             ('spark.executor.instances', 10),
+    #                             ('spark.sql.warehouse.dir', warehouse_location)])
+
+    ######### local Spark #########
+    sconf = SparkConf().setAll([('spark.master', 'local'),
                                 ('spark.deploy-mode', 'client'),
                                 ('spark.executor.memory', '4g'),
                                 ('spark.app.name', 'Flask-Spark'),
@@ -52,6 +64,8 @@ def get_spark_Session():
                                 ('spark.driver.memory', '4g'),
                                 ('spark.executor.instances', 10),
                                 ('spark.sql.warehouse.dir', warehouse_location)])
+
+
     spark = SparkSession \
         .builder \
         .config(conf=sconf) \
@@ -275,14 +289,20 @@ def make_line_plot(dictionary, id):
 
 def make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel, yAxisLabel):
     """
+    This function creates a bokeh-plot and returns the script and div.
+    Depending on the length of x_columns and y_columns this function creates different plots.
+    Case (len(x_columns) ==1) :
+        This assumes the user wants to plot multiple graphs that share an x-Axis
+    Case (len(x_columns) == len(y_columns)) :
+        This assumes the user wants to plot tuples of (X,Y)
 
-    :param df:
-    :param x_columns:
-    :param y_columns:
-    :param plot_type:
-    :param title:
-    :param xAxisLabel:
-    :param yAxisLabel:
+    :param df: data frame
+    :param x_columns: selected columns for x-Axis
+    :param y_columns: selected columns for y-Axis
+    :param plot_type: "Scatter Plot" or "Line Plot"
+    :param title: Title of the plot
+    :param xAxisLabel: Label for x-axis
+    :param yAxisLabel: Label for x-axis
     :return:
     """
     p = figure()
