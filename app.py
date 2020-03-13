@@ -344,11 +344,15 @@ def windowedStreamResponse():
         windowed_stream = windowed_stream.reduce(reduceMin)
 
     windowed_stream.pprint()
-    ssc.start()
-    node = StreamingNode(label="Window: \n" + str(windowLength) + "s / " + str(windowInterval) + " s", stream=stream,
+    node = StreamingNode(label="Window: \n" + str(windowLength) + "s / " + str(windowInterval) + " s", stream=windowed_stream,
                          inputs=[source], ssc=ssc)
     graph.add_node(node)
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
+
+@app.route('/startStreaming', methods=['POST'])
+def startStreaming():
+    ssc.start()
+    return "success"
 
 plots = []
 @app.route('/dashboard/')
@@ -380,6 +384,24 @@ def submitPlot():
     df = source.df.toPandas()
     node = Node(plot_type,df=None,inputs=[source])
     plots.append(make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel,yAxisLabel))
+    graph.add_node(node)
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
+
+@app.route('/submitHistPlot', methods=['POST'])
+def submitHistPlot():
+    id = request.form['id']
+    x_column = eval(request.form['xColumns'])
+
+    bins = int(request.form['bins'])
+    print(bins)
+    title = request.form['title']
+    xAxisLabel = request.form['xAxisLabel']
+    yAxisLabel = request.form['yAxisLabel']
+
+    source = graph[id]
+    edges, hist = source.df.select(x_column).rdd.flatMap(lambda x: x).histogram(bins)
+    node = Node("Histogram",df=None,inputs=[source])
+    plots.append(make_hist_plot(hist, edges, title, xAxisLabel,yAxisLabel))
     graph.add_node(node)
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 

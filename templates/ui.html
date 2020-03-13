@@ -117,6 +117,7 @@
     <div class="dropdown-container">
         <a href="#" onclick="showTable()">Show Table</a>
         <a href="#" onclick="plot()">Plot Data</a>
+        <a href="#" onclick="plotHistogram()">Histogram</a>
     </div>
     <hr style="background-color : #818181">
     <button class="dropdown-btn">Kafka Topics
@@ -133,6 +134,9 @@
     <div class="dropdown-container">
         <a href="#" onclick="windowedStream()">Window</a>
         <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
+        <a href="#" onclick="selectStream()">Select Stream</a>
+        <a href="#" onclick="filterStream()">Filter Stream</a>
+        <a href="#" onclick="startStreaming()">Start Stream</a>
     </div>
 </div>
 
@@ -1385,6 +1389,11 @@
     }
 
 
+    function startStreaming() {
+        $.post("startStreaming", (response, status) => {
+        });
+    }
+
     // ############################ Vizualization ############################
 
     function plot() {
@@ -1412,12 +1421,8 @@
                                             <div id="yValues"></div>
                                       </div>
 
-                                     <div class="mb">
-                                            <label>Select columns to plot</label>
-                                            <div id="columns"></div>
-                                      </div>
-
                                      <div class="mb-3">
+                                        <label>Select plot type</label>
                                         <select id="plotType" class="form-control">
                                           <option>Scatter Plot</option>
                                           <option>Line Plot</option>
@@ -1463,8 +1468,8 @@
 
                 $.post("submitPlot", {
                         id: id, xColumns: JSON.stringify(xColumns), yColumns: JSON.stringify(yColumns),
-                        title: title, xAxisLabel:xAxisLabel, yAxisLabel:yAxisLabel,
-                        plotType:plotType
+                        title: title, xAxisLabel: xAxisLabel, yAxisLabel: yAxisLabel,
+                        plotType: plotType
                     },
                     function (response, status) {
                         visualizeResponse(response)
@@ -1478,6 +1483,79 @@
 
     }
 
+    function plotHistogram() {
+        clear("form");
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+        let id = selected[0].data.id;
+
+        $.post("getColumns", {id: id}, function (response, status) {
+
+            var columns = Object.keys(response);
+            var types = Object.values(response);
+            console.log(columns);
+            console.log(types);
+
+            let plotUI = document.createElement("div");
+
+            plotUI.innerHTML = `<div>
+                                     <div class="mb">
+                                            <label>Select columns for Histogram</label>
+                                            <div id="xValues"></div>
+                                      </div>
+                                      <div class="input-group mb-3">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text">Number of Bins</span>
+                                            </div>
+                                            <input id='bins' type="number" class="form-control" aria-describedby="basic-addon2">
+                                      </div>
+                                      <div class="input-group mb-3">
+                                        <div class="input-group-prepend">
+                                          <span class="input-group-text">Title</span>
+                                        </div>
+                                        <input type="text" id="plotTitle" class="form-control" placeholder="Title of Plot">
+                                      </div>
+
+                                      <div class="input-group mb-3">
+                                        <div class="input-group-prepend">
+                                          <span class="input-group-text">x-Axis Label</span>
+                                        </div>
+                                        <input type="text" id="xAxis" class="form-control" placeholder="Label for x-axis">
+                                      </div>
+
+                                      <div class="input-group mb-3">
+                                        <div class="input-group-prepend">
+                                          <span class="input-group-text">y-Axis Label</span>
+                                        </div>
+                                        <input type="text" id="yAxis" class="form-control" placeholder="Label for y-axis">
+                                      </div>
+
+                                      <button type="submit" id="submitPlot" class="btn btn-primary">Submit</button>
+                                </div>`;
+            document.getElementById("form").appendChild(plotUI);
+            createSelectize("xValues", columns, false, 1);
+
+            function submitPlot() {
+                let xColumns = getSelectize("#xValues");
+
+                let bins = document.getElementById("bins").value;
+                let title = document.getElementById("plotTitle").value;
+                let xAxisLabel = document.getElementById("xAxis").value;
+                let yAxisLabel = document.getElementById("yAxis").value;
+
+
+                $.post("submitHistPlot", {
+                        id: id, xColumns: JSON.stringify(xColumns), bins: bins,
+                        title: title, xAxisLabel: xAxisLabel, yAxisLabel: yAxisLabel,
+                    },
+                    function (response, status) {
+                        visualizeResponse(response)
+                    });
+            }
+
+            $("#submitPlot").click(submitPlot);
+        });
+    }
 </script>
 
 <script>

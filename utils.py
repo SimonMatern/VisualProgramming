@@ -46,16 +46,16 @@ def get_spark_Session():
     #TODO: Change to Yarn-Client
 
     ######### Standalone-Spark #########
-    # sconf = SparkConf().setAll([('spark.master', 'spark://master:7077'),
-    #                             ('spark.deploy-mode', 'client'),
-    #                             ('spark.executor.memory', '4g'),
-    #                             ('spark.app.name', 'Flask-Spark'),
-    #                             ('spark.executor.cores', '4'),
-    #                             ('spark.driver.memory', '4g'),
-    #                             ('spark.executor.instances', 10),
-    #                             ('spark.sql.warehouse.dir', warehouse_location)])
+    sconf = SparkConf().setAll([('spark.master', 'spark://master:7077'),
+                                ('spark.deploy-mode', 'client'),
+                                ('spark.executor.memory', '4g'),
+                                ('spark.app.name', 'Flask-Spark'),
+                                ('spark.executor.cores', '4'),
+                                ('spark.driver.memory', '4g'),
+                                ('spark.executor.instances', 10),
+                                ('spark.sql.warehouse.dir', warehouse_location)])
 
-    ######### local Spark #########
+    ######## local Spark #########
     sconf = SparkConf().setAll([('spark.master', 'local'),
                                 ('spark.deploy-mode', 'client'),
                                 ('spark.executor.memory', '4g'),
@@ -316,7 +316,9 @@ def make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel, yAxisLabel
     :param title: Title of the plot
     :param xAxisLabel: Label for x-axis
     :param yAxisLabel: Label for x-axis
-    :return:
+    :return: script, div
+            script: describes the interactive javascript
+            div: the html part of the plot contained in a <div>
     """
     p = figure()
     p.title.text = title
@@ -347,6 +349,15 @@ def make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel, yAxisLabel
     script, div = components(p)
     return script, div
 
+def make_hist_plot(hist, edges, title,xAxisLabel, yAxisLabel ):
+    p = figure(title=title, tools='', background_fill_color="#fafafa")
+    p.title.text = title
+    p.xaxis.axis_label = xAxisLabel
+    p.yaxis.axis_label = yAxisLabel
+    p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:],
+           fill_color="navy", line_color="white", alpha=0.5)
+    script, div = components(p)
+    return script, div
 
 
 def df_to_dict(df):
