@@ -249,6 +249,19 @@ def reduceSum(x, y):
 
         return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
 
+def reduceMin(x,y):
+    if(type(x)==dict and type(y)==dict):
+        x = filterDict(x, isNumerical)
+        y = filterDict(y, isNumerical)
+
+        return{ k: min(x.get(k, 0), y.get(k, 0)) for k in set(x) | set(y) }
+
+def reduceMax(x,y):
+    if(type(x)==dict and type(y)==dict):
+        x = filterDict(x, isNumerical)
+        y = filterDict(y, isNumerical)
+
+        return{ k: min(x.get(k, 0), y.get(k, 0)) for k in set(x) | set(y) }
 
 def count_to_mean(x):
     for key in x:

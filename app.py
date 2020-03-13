@@ -335,8 +335,14 @@ def windowedStreamResponse():
         windowed_stream = stream.window(windowLength, windowInterval)
         windowed_stream = windowed_stream.reduce(reduceSum)
     if request.form['aggregationFunction'] == "Mean":
-        windowed_stream = stream.map(countStream).window(windowLength, windowInterval).reduce(reduceSum).map(
-            count_to_mean)
+        windowed_stream = stream.map(countStream).window(windowLength, windowInterval).reduce(reduceSum).map(count_to_mean)
+    if request.form['aggregationFunction'] == "Max":
+        windowed_stream = stream.window(windowLength, windowInterval)
+        windowed_stream = windowed_stream.reduce(reduceMax)
+    if request.form['aggregationFunction'] == "Min":
+        windowed_stream = stream.window(windowLength, windowInterval)
+        windowed_stream = windowed_stream.reduce(reduceMin)
+
     windowed_stream.pprint()
     ssc.start()
     node = StreamingNode(label="Window: \n" + str(windowLength) + "s / " + str(windowInterval) + " s", stream=stream,
