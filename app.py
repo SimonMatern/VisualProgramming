@@ -421,7 +421,6 @@ def submitSurvivalPlot():
     censCol = request.form['censCol']
 
     params = json.loads(request.form['params'])
-    print(params)
 
     source = graph[id]
     df = source.df
@@ -446,8 +445,15 @@ def submitSurvivalPlot():
     if "fitWeibull3" in params and params["fitWeibull3"]:
         plt.subplot(1,plots_count,i); i+=1;
         Weibull_probability_plot(failures=fail, right_censored=cens, fit_gamma=True)
+    if "fitLogNormal2" in params and params["fitLogNormal2"]:
+        plt.subplot(1,plots_count,i); i+=1;
+        Lognormal_probability_plot(failures=fail, right_censored=cens, fit_gamma=False)
+    if "fitLogNormal3" in params and params["fitLogNormal3"]:
+        plt.subplot(1,plots_count,i); i+=1;
+        Lognormal_probability_plot(failures=fail, right_censored=cens, fit_gamma=True)
 
-    fig.tight_layout()
+    plt.gcf().set_size_inches(int(7.5*plots_count), 7)
+    plt.subplots_adjust(left=0.08, right=0.98, top=0.92, wspace=0.35)
     mlt_plots[uuid.uuid1().hex] = fig
 
     node = Node("Probability Plot",df=None,inputs=[source])

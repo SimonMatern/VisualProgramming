@@ -30,7 +30,7 @@ import uuid
 import itertools
 
 # -------- reliability imports  --------
-from reliability.Probability_plotting import Weibull_probability_plot, Exponential_probability_plot
+from reliability.Probability_plotting import Weibull_probability_plot, Exponential_probability_plot, Lognormal_probability_plot
 from reliability.Distributions import Weibull_Distribution
 import matplotlib.pyplot as plt
 # -------- END reliability imports  --------
