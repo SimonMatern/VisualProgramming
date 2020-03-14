@@ -116,8 +116,9 @@
     </button>
     <div class="dropdown-container">
         <a href="#" onclick="showTable()">Show Table</a>
-        <a href="#" onclick="plot()">Plot Data</a>
-        <a href="#" onclick="plotHistogram()">Histogram</a>
+        <a href="#" onclick="plot()">Scatter/Line Plot</a>
+        <a href="#" onclick="plotHistogram()">Histogram Plot</a>
+        <a href="#" onclick="ProbabilityPlot()">Survival Analysis</a>
     </div>
     <hr style="background-color : #818181">
     <button class="dropdown-btn">Kafka Topics
@@ -134,8 +135,6 @@
     <div class="dropdown-container">
         <a href="#" onclick="windowedStream()">Window</a>
         <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
-        <a href="#" onclick="selectStream()">Select Stream</a>
-        <a href="#" onclick="filterStream()">Filter Stream</a>
         <a href="#" onclick="startStreaming()">Start Stream</a>
     </div>
 </div>
@@ -1555,6 +1554,172 @@
 
             $("#submitPlot").click(submitPlot);
         });
+    }
+
+
+    function ProbabilityPlot() {
+        clear("form");
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+        let id = selected[0].data.id;
+
+        $.post("getColumns", {id: id}, function (response, status) {
+
+            var columns = Object.keys(response);
+            var types = Object.values(response);
+
+
+            let plotUI = document.createElement("div");
+
+            plotUI.innerHTML = `
+                                  <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">Failure Data</span>
+                                    </div>
+                                    <select class="custom-select" id='failureCol'></select>
+                                  </div>
+
+                                  <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">Censored Data</span>
+                                    </div>
+                                    <select class="custom-select" id='censCol'>
+                                          <option selected>Not Censored</option>
+                                    </select>
+                                  </div>
+
+                                  <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text">Select Distribution</span>
+                                    </div>
+                                      <select class="custom-select" id='selectDist'>
+                                          <option>Weibull 2-Param</option>
+                                          <option>Weibull 3-Param</option>
+                                          <option>LogNormal 2-Param</option>
+                                          <option>LogNormal 3-Param</option>
+                                      </select>
+                                     <button id='addDistPlot' class="btn btn btn-primary" type="button">Add Plot</button>
+                                  </div>
+
+                                  <div id = "insertPlot"></div>
+
+                                 <button type="submit" id="submitPlot" class="btn btn-primary">Submit</button>`;
+            document.getElementById("form").appendChild(plotUI);
+
+            var count = 0;
+            var plotDictionary = {};
+
+            let failureSelect = document.getElementById("failureCol");
+            for (var i = 0; i < columns.length; i++) {
+                var option = document.createElement("option");
+                option.value = columns[i];
+                option.text = columns[i];
+                failureSelect.appendChild(option);
+            }
+
+            let censSelect = document.getElementById("censCol");
+            for (var i = 0; i < columns.length; i++) {
+                var option = document.createElement("option");
+                option.value = columns[i];
+                option.text = columns[i];
+                censSelect.appendChild(option);
+            }
+
+
+            function addDistPlot(){
+                let dist = getSelect("selectDist");
+                if (dist === "Weibull 2-Param"){
+                    if (plotDictionary["fitWeibull2"] === true) return;
+                    let distUI = document.createElement("div");
+                    let id = "plot"+(count);
+                    distUI.id = id;
+                    distUI.innerHTML =
+                        `<div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Fit Weibull distribution with two parameters</span>
+                            </div>
+                            <button id='removeDist${count}' class="btn btn-danger" type="button">Remove Plot</button>
+                         </div>`;
+
+                    document.getElementById("insertPlot").appendChild(distUI);
+                    $("#"+"removeDist"+ count).click(()=> {plotDictionary["fitWeibull2"] = false;removeElement(id);});
+                    plotDictionary["fitWeibull2"] = true;
+                    count++;
+                }
+                if (dist === "Weibull 3-Param"){
+                    if (plotDictionary["fitWeibull3"] === true) return;
+                    let distUI = document.createElement("div");
+                    let id = "plot"+(count);
+                    distUI.id = id;
+                    distUI.innerHTML =
+                        `<div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Fit Weibull distribution with three parameters</span>
+                            </div>
+                            <button id='removeDist${count}' class="btn btn-danger" type="button">Remove Plot</button>
+                         </div>`;
+
+                    document.getElementById("insertPlot").appendChild(distUI);
+                    $("#"+"removeDist"+ count).click(()=> {plotDictionary["fitWeibull3"] = false;removeElement(id);});
+                    plotDictionary["fitWeibull3"] = true;
+                    count++;
+                }
+                if (dist === "LogNormal 2-Param"){
+                    if (plotDictionary["fitLogNormal2"] === true) return;
+                    let distUI = document.createElement("div");
+                    let id = "plot"+(count);
+                    distUI.id = id;
+                    distUI.innerHTML =
+                        `<div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Fit Weibull distribution with three parameters</span>
+                            </div>
+                            <button id='removeDist${count}' class="btn btn-danger" type="button">Remove Plot</button>
+                         </div>`;
+
+                    document.getElementById("insertPlot").appendChild(distUI);
+                    $("#"+"removeDist"+ count).click(()=> {plotDictionary["fitLogNormal2"] = false;removeElement(id);});
+                    plotDictionary["fitLogNormal2"] = true;
+                    count++;
+                }
+                if (dist === "LogNormal 3-Param"){
+                    if (plotDictionary["fitLogNormal3"] === true) return;
+                    let distUI = document.createElement("div");
+                    let id = "plot"+(count);
+                    distUI.id = id;
+                    distUI.innerHTML =
+                        `<div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Fit Weibull distribution with three parameters</span>
+                            </div>
+                            <button id='removeDist${count}' class="btn btn-danger" type="button">Remove Plot</button>
+                         </div>`;
+
+                    document.getElementById("insertPlot").appendChild(distUI);
+                    $("#"+"removeDist"+ count).click(()=> {plotDictionary["fitLogNormal3"] = false;removeElement(id);});
+                    plotDictionary["fitLogNormal3"] = true;
+                    count++;
+                }
+            }
+            $("#addDistPlot").click(addDistPlot);
+
+
+            function submitPlot() {
+                let failureCol = getSelect("failureCol");
+                let censCol = getSelect("censCol");
+
+                $.post("submitSurvivalPlot", {
+                        id: id, failureCol: failureCol, censCol: censCol,
+                        params: JSON.stringify(plotDictionary)
+                    },
+                    function (response, status) {
+                        visualizeResponse(response)
+                    });
+            }
+
+            $("#submitPlot").click(submitPlot);
+        });
+
     }
 </script>
 

@@ -29,6 +29,12 @@ from bokeh.palettes import Category20
 import uuid
 import itertools
 
+# -------- reliability imports  --------
+from reliability.Probability_plotting import Weibull_probability_plot, Exponential_probability_plot
+from reliability.Distributions import Weibull_Distribution
+import matplotlib.pyplot as plt
+# -------- END reliability imports  --------
+
 def get_spark_Session():
     os.environ["SPARK_HOME"] = "/home/nodeuser/nfs_share/spark-2.4.4-bin-hadoop2.7"
     os.environ["PYSPARK_PYTHON"] = "/usr/local/anaconda3/bin/python"

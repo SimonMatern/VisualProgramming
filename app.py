@@ -1,6 +1,13 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for
-import os
+from flask import Flask, request, jsonify, render_template, redirect, url_for,Response
 
+
+
+import io
+import random
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
+
+import os
 import json
 import time
 import csv
@@ -358,7 +365,7 @@ plots = []
 @app.route('/dashboard/')
 def show_dashboard():
     global plots
-    return render_template('plots.html', plots=plots)
+    return render_template('plots.html', bokeh_plots=plots, mlt_plots=mlt_plots.keys())
 
 
 x = 0
@@ -404,6 +411,63 @@ def submitHistPlot():
     plots.append(make_hist_plot(hist, edges, title, xAxisLabel,yAxisLabel))
     graph.add_node(node)
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
+
+mlt_plots = {}
+@app.route('/submitSurvivalPlot', methods=['POST'])
+def submitSurvivalPlot():
+
+    id = request.form['id']
+    failureCol = request.form['failureCol']
+    censCol = request.form['censCol']
+
+    params = json.loads(request.form['params'])
+    print(params)
+
+    source = graph[id]
+    df = source.df
+
+    if censCol == "Not Censored":
+        fail = source.df.select(failureCol).rdd.flatMap(lambda x: x).collect()
+        cens = []
+    else:
+        data = df.select([failureCol, censCol]).toPandas()
+        fail = data[data[censCol] == 1]
+        cens = data[data[censCol] == 0]
+
+        fail = fail[failureCol].to_numpy()
+        cens = cens[failureCol].to_numpy()
+
+    plots_count = len([k for k,v in params.items() if v == True])
+    i = 1
+    fig = plt.figure()
+    if "fitWeibull2" in params and params["fitWeibull2"]:
+        plt.subplot(1,plots_count,i); i+=1;
+        Weibull_probability_plot(failures=fail, right_censored=cens, fit_gamma=False)
+    if "fitWeibull3" in params and params["fitWeibull3"]:
+        plt.subplot(1,plots_count,i); i+=1;
+        Weibull_probability_plot(failures=fail, right_censored=cens, fit_gamma=True)
+
+    fig.tight_layout()
+    mlt_plots[uuid.uuid1().hex] = fig
+
+    node = Node("Probability Plot",df=None,inputs=[source])
+    graph.add_node(node)
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
+
+@app.route('/plot/<plotId>')
+def plot_png(plotId):
+    fig = mlt_plots[plotId]
+    output = io.BytesIO()
+    FigureCanvas(fig).print_png(output)
+    return Response(output.getvalue(), mimetype='image/png')
+
+def create_figure():
+    data = Weibull_Distribution(alpha=5, beta=3).random_samples(100)
+    fig = plt.figure()
+    Weibull_probability_plot(failures=data)
+    plt.title('Example of a good fit')
+    return fig
+
 
 if __name__ == '__main__':
     app.run()
