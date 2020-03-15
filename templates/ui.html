@@ -81,7 +81,7 @@
 
 
 <div id="sidenav" class="sidenav">
-    <button class="dropdown-btn"> HIVE <i class="fa fa-caret-down"></i></button>
+    <button class="dropdown-btn" ><i class="fas fa-server"></i> HIVE <i class="fa fa-caret-down"></i></button>
     <div class="dropdown-container">
         {% for database, tables in tables.items() %}
             <button class="dropdown-btn">  {{ database }} <i class="fa fa-caret-down"></i>
@@ -94,12 +94,12 @@
         {% endfor %}
     </div>
 
-    <button class="dropdown-btn">Add Datasource
+    <button class="dropdown-btn"><i class="fas fa-plus"></i> Add Datasource
         <i class="fa fa-caret-down"></i>
     </button>
     <div class="dropdown-container">
-        <a href="#" onclick="addSQLDataSource()">Add SQL Database</a>
-        <a href="#" onclick="uploadCSV()">Upload CSV</a>
+        <a href="#" onclick="addSQLDataSource()"><i class="fas fa-database"></i> Add SQL Database</a>
+        <a href="#" onclick="uploadCSV()"><i class="fas fa-file-csv"></i> Upload CSV</a>
     </div>
 
     <button class="dropdown-btn">SQL-Functions
