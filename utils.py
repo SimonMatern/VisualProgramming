@@ -25,6 +25,9 @@ from bokeh.plotting import figure
 from bokeh.embed import components
 from bokeh.models.sources import AjaxDataSource
 from bokeh.palettes import Category20
+from bokeh.models import BoxAnnotation, Band
+from bokeh.layouts import column
+
 # --------END Bokeh imports  --------
 import uuid
 import itertools
@@ -210,18 +213,6 @@ def createCondition(condition):
         label = condition["column"] + " >= " + condition["lowerBound"] + " & " + condition["column"] + " <= " + condition["upperBound"]
         return filter_condition, label
 
-def reduceSum(x,y):
-    """
-    Sum two elements in the Stream.
-    :param x: tuple or dictionary
-    :param y: tuple or dictionary
-    :return:
-    """
-    if(type(x)==dict and type(y)==dict):
-        x = filterDict(x, isNumerical)
-        y = filterDict(y, isNumerical)
-
-        return{ k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y) }
 
 
 def filterDict(dictObj, filterCallback):
@@ -247,13 +238,19 @@ def countStream(x):
     x["count"] = 1
     return x
 
-
-def reduceSum(x, y):
-    if (type(x) == dict and type(y) == dict):
+def reduceSum(x,y):
+    """
+    Sum two elements in the Stream.
+    :param x: tuple or dictionary
+    :param y: tuple or dictionary
+    :return:
+    """
+    if(type(x)==dict and type(y)==dict):
         x = filterDict(x, isNumerical)
         y = filterDict(y, isNumerical)
 
-        return {k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y)}
+        return{ k: x.get(k, 0) + y.get(k, 0) for k in set(x) | set(y) }
+
 
 def reduceMin(x,y):
     if(type(x)==dict and type(y)==dict):
@@ -275,8 +272,21 @@ def count_to_mean(x):
     del x["count"]
     return x
 
+def stream_to_DF(time, rdd, streaming_dict, id):
+    if rdd.isEmpty():
+        return
+    df = rdd.map(lambda x: Row(**x)).toDF().toPandas()
+    df["time_stamp"]= time.timestamp() * 1000
+
+    if id in streaming_dict:
+        streaming_dict[id]= streaming_dict[id].append(df, ignore_index=True)
+    else:
+        streaming_dict[id]=df
+
+
+
+
 def AverageAndStd(time, rdd, streaming_dict, id):
-    global x
     if rdd.isEmpty():
         return
     df = rdd.map(lambda x: Row(**x)).toDF()
@@ -295,7 +305,7 @@ def AverageAndStd(time, rdd, streaming_dict, id):
 
 def make_line_plot(dictionary, id):
     source = AjaxDataSource(data_url=request.url_root + 'data/' + id +"/",
-                            polling_interval=2000, mode='replace')
+                            polling_interval=1000, mode='replace')
     source.data = dictionary
     plot = figure(plot_height=300, sizing_mode='scale_width',x_axis_type="datetime")
 
@@ -304,6 +314,44 @@ def make_line_plot(dictionary, id):
         plot.line('time_stamp', key, source=source, line_width=4)
 
     script, div = components(plot)
+    return script, div
+
+#----- Control Chart: Stream and Plot -----#
+def stream_to_control_chart(time, rdd, streaming_dict, id):
+    if rdd.isEmpty():
+        return
+    df = rdd.map(lambda x: Row(**x)).toDF()
+    columns = df.schema.names
+    conditions_mean = [_mean(col(column)).alias(column) for column in columns]
+
+    df = df.select(conditions_mean).toPandas()
+    df["time_stamp"] = time.timestamp() * 1000
+
+    if id in streaming_dict:
+        streaming_dict[id] = streaming_dict[id].append(df, ignore_index=True)
+    else:
+        streaming_dict[id] = df
+
+def make_control_chart(dictionary, id):
+    source = AjaxDataSource(data_url=request.url_root + 'control-chart/' + id +"/",
+                            polling_interval=1000, mode='replace')
+    source.data = dictionary
+
+    keys = [key for key in dictionary if not (key.endswith("_lower") or (key.endswith("_upper")))]
+    figures = []
+    for key in keys:
+        if key == "time_stamp": continue
+        plot = figure(plot_height=300, sizing_mode='scale_width', x_axis_type="datetime")
+        band = Band(base="time_stamp", lower=key+'_lower', upper=key+'_upper', source=source, level='underlay',
+                    fill_alpha=0.4, line_width=1, fill_color='#55FF88', line_color='red', line_dash='dashed',)
+        plot.add_layout(band)
+        plot.line('time_stamp', key, source=source, line_width=4)
+        plot.circle('time_stamp', key, source=source, line_width=4, color= "red")
+
+        figures.append(plot)
+
+    script, div = components(column(figures))
+
     return script, div
 
 def make_plot(df, x_columns, y_columns, plot_type, title, xAxisLabel, yAxisLabel):

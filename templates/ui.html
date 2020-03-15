@@ -31,7 +31,7 @@
     <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/fontawesome.js"
             integrity="sha384-6OIrr52G08NpOFSZdxxz1xdNSndlD4vdcf/q2myIUVO0VsqaGHJsB0RaBE01VTOY"
             crossorigin="anonymous"></script>
-
+    <script src="https://use.fontawesome.com/releases/v5.12.1/js/all.js" data-auto-replace-svg="nest"></script>
 </head>
 
 <style>
@@ -135,6 +135,7 @@
     <div class="dropdown-container">
         <a href="#" onclick="windowedStream()">Window</a>
         <a href="#" onclick="vizualizeStream()">Visualize Stream</a>
+        <a href="#" onclick="controlChart()">Control Chart</a>
         <a href="#" onclick="startStreaming()">Start Stream</a>
     </div>
 </div>
@@ -1321,6 +1322,18 @@
 
         let id = selected[0].data.id;
         $.post("vizualizeStream", {id: id}, function (response, status) {
+            visualizeResponse(response)
+        });
+    }
+    /**
+     * This function plots a control-chart for a selected stream.
+     */
+    function controlChart() {
+        let selected = cy.$(':selected').jsons();
+        if (selected.length != 1) return;
+
+        let id = selected[0].data.id;
+        $.post("controlChart", {id: id}, function (response, status) {
             visualizeResponse(response)
         });
     }

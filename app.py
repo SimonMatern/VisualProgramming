@@ -305,15 +305,14 @@ def addStreamingDataSource():
 
 
 streaming_data = dict()
-
-
 @app.route('/vizualizeStream', methods=['POST'])
 def vizualizeStream():
     id = request.form['id']
     source = graph[id]
     stream = source.stream
 
-    stream.foreachRDD(lambda time, rdd: AverageAndStd(time, rdd, streaming_data, id))
+    #stream.foreachRDD(lambda time, rdd: AverageAndStd(time, rdd, streaming_data, id))
+    stream.foreachRDD(lambda time, rdd: stream_to_DF(time, rdd, streaming_data, id))
 
     node = StreamingNode(label="Visualize", stream=stream, inputs=[source])
     graph.add_node(node)
@@ -324,10 +323,35 @@ def vizualizeStream():
 
     df = streaming_data[id]
     plots.append(make_line_plot(df_to_dict(df), id))
-
-    # ssc.awaitTermination()
     return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
+@app.route('/controlChart', methods=['POST'])
+def controlChart():
+    id = request.form['id']
+    source = graph[id]
+    stream = source.stream
+
+    #stream.foreachRDD(lambda time, rdd: AverageAndStd(time, rdd, streaming_data, id))
+    stream.foreachRDD(lambda time, rdd: stream_to_control_chart(time, rdd, streaming_data, id))
+
+    node = StreamingNode(label="Visualize", stream=stream, inputs=[source])
+    graph.add_node(node)
+    ssc.start()
+
+    #TODO: Export the following code, such that it is only executed when the stream is started:
+    # -Create "pending" variable that identifies streams that are soon-to-be plotted
+    while not id in streaming_data:
+        time.sleep(1)
+
+    df = streaming_data[id]
+    values = df_to_dict(df)
+    for key in list(values.keys()):
+        values[key+"_upper"] = [0]
+        values[key+"_lower"] = [0]
+
+
+    plots.append(make_control_chart(values, id))
+    return {"node": json.dumps(node.get_Cyto_node()), "edges": json.dumps(node.get_Cyto_edges())}
 
 @app.route('/windowedStreamResponse', methods=['POST'])
 def windowedStreamResponse():
@@ -375,6 +399,33 @@ def data(id):
     print(streaming_data)
 
     return jsonify(**df_to_dict(streaming_data[id]))
+
+@app.route('/control-chart/<id>/', methods=['POST'])
+def control_chart(id):
+    global streaming_data
+
+    # get all streaming data
+    df = streaming_data[id].copy()
+    # calculate mean and std
+    mean = df.mean()
+    std = df.std()
+
+    # create a dictionary with upper limits for each value
+    upper = mean + 2 * std
+    upper = upper.to_dict()
+    upper = {key + "_upper": value for key, value in upper.items()}
+    for k,v in upper.items():
+        df[k] = v
+    # create a dictionary with lower limits for each value
+    lower = mean - 2 * std
+    lower = lower.to_dict()
+    lower = {key + "_lower": value for key, value in lower.items()}
+    for k,v in lower.items():
+        df[k] = v
+
+    # create a dictionary with all data and limits
+    data_dict = df_to_dict(df)
+    return jsonify(**data_dict)
 
 @app.route('/submitPlot', methods=['POST'])
 def submitPlot():
@@ -466,13 +517,6 @@ def plot_png(plotId):
     output = io.BytesIO()
     FigureCanvas(fig).print_png(output)
     return Response(output.getvalue(), mimetype='image/png')
-
-def create_figure():
-    data = Weibull_Distribution(alpha=5, beta=3).random_samples(100)
-    fig = plt.figure()
-    Weibull_probability_plot(failures=data)
-    plt.title('Example of a good fit')
-    return fig
 
 
 if __name__ == '__main__':
