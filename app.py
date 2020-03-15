@@ -420,7 +420,7 @@ def submitSurvivalPlot():
     failureCol = request.form['failureCol']
     censCol = request.form['censCol']
 
-    params = json.loads(request.form['params'])
+    dists = eval(request.form['dists'])
 
     source = graph[id]
     df = source.df
@@ -436,19 +436,19 @@ def submitSurvivalPlot():
         fail = fail[failureCol].to_numpy()
         cens = cens[failureCol].to_numpy()
 
-    plots_count = len([k for k,v in params.items() if v == True])
+    plots_count = len(dists)
     i = 1
     fig = plt.figure()
-    if "fitWeibull2" in params and params["fitWeibull2"]:
+    if "Weibull 2-Param" in dists:
         plt.subplot(1,plots_count,i); i+=1;
         Weibull_probability_plot(failures=fail, right_censored=cens, fit_gamma=False)
-    if "fitWeibull3" in params and params["fitWeibull3"]:
+    if "Weibull 3-Param" in dists:
         plt.subplot(1,plots_count,i); i+=1;
         Weibull_probability_plot(failures=fail, right_censored=cens, fit_gamma=True)
-    if "fitLogNormal2" in params and params["fitLogNormal2"]:
+    if "LogNormal 2-Param" in dists:
         plt.subplot(1,plots_count,i); i+=1;
         Lognormal_probability_plot(failures=fail, right_censored=cens, fit_gamma=False)
-    if "fitLogNormal3" in params and params["fitLogNormal3"]:
+    if "LogNormal 3-Param" in dists:
         plt.subplot(1,plots_count,i); i+=1;
         Lognormal_probability_plot(failures=fail, right_censored=cens, fit_gamma=True)
 
